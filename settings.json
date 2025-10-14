@@ -1,0 +1,23 @@
+{
+  "bad_patterns": [
+    {
+      "type": "hex",
+      "value": "00",
+      "name": "NULL byte",
+      "enabled": true
+    },
+    {
+      "type": "hex",
+      "value": "0a",
+      "name": "LF byte",
+      "enabled": false
+    },
+    {
+      "type": "hex",
+      "value": "ff",
+      "name": "0xFF byte",
+      "enabled": false
+    }
+  ],
+  "bad_highlight_enabled": true
+}
