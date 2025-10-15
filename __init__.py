@@ -51,7 +51,7 @@ def _register_bn_actions():
         return True
 
     # Register a global UI action so it appears in the Command Palette
-    action_name = "Shellcode IDE: Open"
+    action_name = "Shellcode IDE"
     UIAction.registerAction(action_name)
     # Bind using a UIAction wrapper; BN expects a UIAction instance, not a raw function
     UIActionHandler.globalActions().bindAction(action_name, UIAction(open_window, always_enabled))
@@ -59,7 +59,7 @@ def _register_bn_actions():
     # Add the action to the Plugins menu so it is always clickable
     try:
         # Preferred: add under Plugins -> Shellcode IDE
-        Menu.mainMenu("Plugins").addAction("Shellcode IDE", action_name)
+        Menu.mainMenu("Plugins").addAction(action_name, action_name)
     except Exception:
         try:
             # Fallback signatures for older BN builds
@@ -67,19 +67,19 @@ def _register_bn_actions():
         except Exception:
             try:
                 # Last-resort path notation
-                Menu().addAction("Plugins\\Shellcode IDE", action_name)
+                Menu().addAction(f"Plugins\\{action_name}", action_name)
             except Exception:
                 pass
 
     # Also add under Tools for convenience, but Plugins is primary
     try:
-        Menu.mainMenu("Tools").addAction("Shellcode IDE", action_name)
+        Menu.mainMenu("Tools").addAction(action_name, action_name)
     except Exception:
         try:
             Menu.mainMenu("Tools").addAction(action_name)
         except Exception:
             try:
-                Menu().addAction("Tools\\Shellcode IDE", action_name)
+                Menu().addAction(f"Tools\\{action_name}", action_name)
             except Exception:
                 pass
 
@@ -99,7 +99,7 @@ def launch_standalone():
             from PySide6.QtWidgets import QApplication  # type: ignore
             app_mod = "PySide6"
         except Exception as exc:
-            print("PySide2/PySide6 is required for standalone launch:", exc)
+            print("[Shellcode IDE] PySide2/PySide6 is required for standalone launch:", exc)
             sys.exit(1)
 
     from .ui.main_window import ShellcodeIDEWindow

@@ -25,6 +25,8 @@ class PygmentsHighlighter(QSyntaxHighlighter):
     def __init__(self, parent_document, lexer_name: str = "asm", style_name: str = "native"):
         # Initialize without a document first to avoid early highlightBlock calls
         QSyntaxHighlighter.__init__(self)
+        print(f"[Shellcode IDE] PygmentsHighlighter: lexer_name={lexer_name}, style_name={style_name}")
+
         self.lexer = None
         self.formats = {}
         self.default_format = QTextCharFormat()
@@ -34,17 +36,20 @@ class PygmentsHighlighter(QSyntaxHighlighter):
             from pygments.styles import get_style_by_name
             from pygments.token import Token
         except Exception as exc:
+            print(f"[Shellcode IDE] Pygments not available: {exc}")
             raise ImportError("pygments is not available") from exc
 
         try:
             self.lexer = get_lexer_by_name(lexer_name)
         except Exception as exc:
+            print(f"[Shellcode IDE] Failed to get lexer for {lexer_name}: {exc}")
             # fallback to text lexer
             self.lexer = get_lexer_by_name("text")
 
         try:
             self.style = get_style_by_name(style_name)
         except Exception:
+            print(f"[Shellcode IDE] Style '{style_name}' not found, falling back to 'default'")
             self.style = get_style_by_name("default")
 
         # Build QTextCharFormat map for pygments style entries
@@ -431,77 +436,11 @@ def create_disassembly_highlighter(document, arch_name: str = "x86_64", style_na
     return SimpleAsmHighlighter(document)
 
 
-class SimpleCodeHighlighter(QSyntaxHighlighter):
-    """Minimal code highlighter for generic languages (C/Python/Zig fallback).
-
-    Highlights strings, comments, and numbers to provide basic readability
-    when Pygments isn't available in the environment.
-    """
-
-    def __init__(self, document):
-        QSyntaxHighlighter.__init__(self, document)
-        self.fmt_string = QTextCharFormat(); self.fmt_string.setForeground(_qcolor_from_css("#43a047"))  # green
-        self.fmt_comment = QTextCharFormat(); self.fmt_comment.setForeground(_qcolor_from_css("#9e9e9e")); self.fmt_comment.setFontItalic(True)
-        self.fmt_number = QTextCharFormat(); self.fmt_number.setForeground(_qcolor_from_css("#f57c00"))  # orange
-
-    def highlightBlock(self, text: str) -> None:  # type: ignore
-        if not text:
-            return
-        n = len(text)
-        # Line comments: //... or #...
-        cpos = text.find('//')
-        hpos = text.find('#')
-        pos = -1
-        if cpos != -1 and hpos != -1:
-            pos = min(cpos, hpos)
-        else:
-            pos = cpos if cpos != -1 else hpos
-        if pos != -1:
-            self.setFormat(pos, n - pos, self.fmt_comment)
-            # remainder is code
-            text = text[:pos]
-            n = len(text)
-
-        # Strings: naive scan for '...' and "..." without escapes handling complexity
-        i = 0
-        while i < n:
-            if text[i] in ('"', "'"):
-                q = text[i]
-                j = i + 1
-                while j < n:
-                    if text[j] == q and text[j - 1] != '\\':
-                        j += 1
-                        break
-                    j += 1
-                self.setFormat(i, max(1, j - i), self.fmt_string)
-                i = max(i + 1, j)
-                continue
-            # Numbers: 0x.. or digits
-            if text[i] == '0' and i + 1 < n and text[i + 1] in 'xX':
-                j = i + 2
-                while j < n and (text[j].isdigit() or ('a' <= text[j].lower() <= 'f')):
-                    j += 1
-                self.setFormat(i, j - i, self.fmt_number)
-                i = j
-                continue
-            if text[i].isdigit():
-                j = i + 1
-                while j < n and text[j].isdigit():
-                    j += 1
-                self.setFormat(i, j - i, self.fmt_number)
-                i = j
-                continue
-            i += 1
-
-
 def create_code_highlighter(document, lexer_name: str = "text", style_name: str | None = None):
     """Create a code highlighter for a given language name.
 
     Tries Pygments first with the requested lexer name; falls back to a
     dependency-free simple highlighter on failure.
     """
-    try:
-        sty = _first_available_style([style_name, "dracula", "rainbow_dash", "monokai", "native", "default"]) or "default"
-        return PygmentsHighlighter(document, lexer_name=lexer_name, style_name=sty)
-    except Exception:
-        return SimpleCodeHighlighter(document)
+    sty = _first_available_style([style_name, "dracula", "rainbow_dash", "monokai", "native", "default"]) or "default"
+    return PygmentsHighlighter(document, lexer_name=lexer_name, style_name=sty)
