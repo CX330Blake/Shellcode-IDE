@@ -64,6 +64,7 @@ from ..utils.config import load_config, save_config
 from .patterns_dialog import PatternsDialog
 from .patterns_panel import PatternsPanel
 from .highlighters import create_disassembly_highlighter, HexBadByteHighlighter, AsmObjdumpBadByteHighlighter
+from .optimize_panel import OptimizePanel
 from ..formatters.base import (
     bytes_to_c_array,
     bytes_to_hex,
@@ -178,7 +179,23 @@ class ShellcodeIDEWindow(QMainWindow):
             self.debug_asm_bad_hl = AsmObjdumpBadByteHighlighter(self.debug_asm_text.document())
         except Exception:
             self.debug_asm_bad_hl = None
+        # Token highlighter for debug assembly (Pygments)
+        try:
+            self.debug_asm_token_hl = create_disassembly_highlighter(
+                self.debug_asm_text.document(), arch_name=self.arch_combo.currentText() or "x86_64", style_name=self._preferred_style()
+            )
+        except Exception:
+            self.debug_asm_token_hl = None
         self.output_tabs.addTab(self.debug_widget, "Debug")
+
+        # Optimize panel (Dev mode)
+        self.optimize_widget = OptimizePanel(
+            get_asm=lambda: self.asm_edit.toPlainText(),
+            set_asm=lambda s: self.asm_edit.setPlainText(s),
+            get_arch=lambda: (self.arch_combo.currentText() or "x86_64"),
+            parent=self,
+        )
+        self.output_tabs.addTab(self.optimize_widget, "Optimize")
 
         # Formats view
         fmt_widget = QWidget()
@@ -295,6 +312,22 @@ class ShellcodeIDEWindow(QMainWindow):
             self.arch_combo.currentTextChanged.connect(lambda _t: self._refresh_disasm_highlighter())
         except Exception:
             pass
+        # Add Pygments to Assembly editor as well
+        try:
+            self.asm_highlighter = create_disassembly_highlighter(
+                self.asm_edit.document(), arch_name=self.arch_combo.currentText() or "x86_64", style_name=self._preferred_style()
+            )
+        except Exception:
+            self.asm_highlighter = None
+        # Keep Optimize preview live on arch/asm changes
+        try:
+            self.arch_combo.currentTextChanged.connect(lambda _t: self.optimize_widget.on_preview())
+        except Exception:
+            pass
+        try:
+            self.asm_edit.textChanged.connect(self.optimize_widget.on_preview)
+        except Exception:
+            pass
         # Patterns panel change hook (refresh highlighting and persist)
         try:
             self.patterns_widget.on_changed = lambda: self.on_badchars_toggled(self.patterns_widget.is_highlight_enabled())
@@ -360,10 +393,11 @@ class ShellcodeIDEWindow(QMainWindow):
                     self.input_tabs.setTabEnabled(idx_asm, True)
                 except Exception:
                     pass
-            # Output: show Output (formats) and Debug
+            # Output: show Output (formats), Debug, and Optimize
             self._set_tab_visible(self.output_tabs, self.output_text, False)
             self._set_tab_visible(self.output_tabs, self.validation_container, False)
             self._set_tab_visible(self.output_tabs, self.debug_widget, True)
+            self._set_tab_visible(self.output_tabs, self.optimize_widget, True)
             self._set_tab_visible(self.output_tabs, self.formats_widget, True)
             try:
                 self.output_tabs.setCurrentWidget(self.debug_widget)
@@ -391,6 +425,7 @@ class ShellcodeIDEWindow(QMainWindow):
             self._set_tab_visible(self.output_tabs, self.validation_container, False)
             self._set_tab_visible(self.output_tabs, self.output_text, True)
             self._set_tab_visible(self.output_tabs, self.debug_widget, False)
+            self._set_tab_visible(self.output_tabs, self.optimize_widget, False)
             try:
                 self.output_tabs.setCurrentWidget(self.output_text)
             except Exception:
@@ -403,6 +438,7 @@ class ShellcodeIDEWindow(QMainWindow):
             self._set_tab_visible(self.output_tabs, self.validation_container, True)
             self._set_tab_visible(self.output_tabs, self.output_text, True)
             self._set_tab_visible(self.output_tabs, self.debug_widget, True)
+            self._set_tab_visible(self.output_tabs, self.optimize_widget, True)
             # Show both input tabs (fallback state)
             try:
                 self.input_tabs.setTabVisible(idx_hex, True)
@@ -698,24 +734,51 @@ class ShellcodeIDEWindow(QMainWindow):
         return "dracula" if self._is_dark_mode() else "rainbow_dash"
 
     def _refresh_disasm_highlighter(self):
-        # Recreate the disassembly highlighter for the current architecture
+        # Recreate token highlighters for current architecture/style
         arch = self.arch_combo.currentText() or "x86_64"
         style = self._preferred_style()
+        # Output disassembly
         try:
-            # Detach old highlighter
             if self.disasm_highlighter:
                 try:
                     self.disasm_highlighter.setDocument(None)
                 except Exception:
                     pass
             self.disasm_highlighter = create_disassembly_highlighter(self.output_text.document(), arch_name=arch, style_name=style)
-            # Force a rehighlight
             try:
                 self.disasm_highlighter.rehighlight()
             except Exception:
                 pass
         except Exception:
             self.disasm_highlighter = None
+        # Debug assembly token highlighter
+        try:
+            if hasattr(self, 'debug_asm_token_hl') and self.debug_asm_token_hl:
+                try:
+                    self.debug_asm_token_hl.setDocument(None)
+                except Exception:
+                    pass
+            self.debug_asm_token_hl = create_disassembly_highlighter(self.debug_asm_text.document(), arch_name=arch, style_name=style)
+            try:
+                self.debug_asm_token_hl.rehighlight()
+            except Exception:
+                pass
+        except Exception:
+            self.debug_asm_token_hl = None
+        # Assembly editor token highlighter
+        try:
+            if hasattr(self, 'asm_highlighter') and self.asm_highlighter:
+                try:
+                    self.asm_highlighter.setDocument(None)
+                except Exception:
+                    pass
+            self.asm_highlighter = create_disassembly_highlighter(self.asm_edit.document(), arch_name=arch, style_name=style)
+            try:
+                self.asm_highlighter.rehighlight()
+            except Exception:
+                pass
+        except Exception:
+            self.asm_highlighter = None
 
     def _show_badchars_controls(self, show: bool):
         """Show/hide the bad-chars controls (checkbox + Edit…) in Dev mode only."""
