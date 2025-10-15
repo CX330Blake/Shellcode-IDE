@@ -225,7 +225,7 @@ class ShellcodeIDEWindow(QMainWindow):
         # Keep formats packed to top
         # No extra stretch; the tab widget fills the height
 
-        self.output_tabs.addTab(fmt_widget, "Output")
+        self.output_tabs.addTab(fmt_widget, "Shellcode")
         self.formats_widget = fmt_widget
         # Tabs fill space so borders align
         right_layout.addWidget(self.output_tabs, 1)

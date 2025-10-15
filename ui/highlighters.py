@@ -101,9 +101,9 @@ class PygmentsHighlighter(QSyntaxHighlighter):
             self.setDocument(parent_document)
         except Exception:
             pass
-        # Fallback mnemonic format to ensure visible difference
+        # Fallback mnemonic format to ensure visible difference (works on light/dark)
         self.mnemonic_format = QTextCharFormat()
-        self.mnemonic_format.setForeground(_qcolor_from_css("#bd93f9"))  # dracula purple as a safe default
+        self.mnemonic_format.setForeground(_qcolor_from_css("#007ACC"))  # vivid blue, high-contrast
 
     def _format_for(self, token):
         if token in self.formats:
@@ -166,21 +166,21 @@ class SimpleAsmHighlighter(QSyntaxHighlighter):
 
         # Colors chosen to be readable on both dark/light themes
         self.fmt_mnemonic = QTextCharFormat()
-        self.fmt_mnemonic.setForeground(_qcolor_from_css("#7c4dff"))  # purple
+        self.fmt_mnemonic.setForeground(_qcolor_from_css("#007ACC"))  # vivid blue
 
         self.fmt_register = QTextCharFormat()
-        self.fmt_register.setForeground(_qcolor_from_css("#00897b"))  # teal
+        self.fmt_register.setForeground(_qcolor_from_css("#00BFA5"))  # cyan/teal
         self.fmt_register.setFontWeight(QFont.Bold)
 
         self.fmt_number = QTextCharFormat()
-        self.fmt_number.setForeground(_qcolor_from_css("#f57c00"))  # orange
+        self.fmt_number.setForeground(_qcolor_from_css("#FF6F00"))  # orange
 
         self.fmt_comment = QTextCharFormat()
-        self.fmt_comment.setForeground(_qcolor_from_css("#9e9e9e"))  # gray
+        self.fmt_comment.setForeground(_qcolor_from_css("#7A7A7A"))  # darker gray for both themes
         self.fmt_comment.setFontItalic(True)
 
         self.fmt_label = QTextCharFormat()
-        self.fmt_label.setForeground(_qcolor_from_css("#3949ab"))  # indigo
+        self.fmt_label.setForeground(_qcolor_from_css("#5E35B1"))  # deep purple
 
         # Very loose regex patterns handled manually in highlightBlock for Qt5/6 compat
         # Common register names across x86/x64; extend as needed
@@ -385,6 +385,21 @@ class AsmObjdumpBadByteHighlighter(QSyntaxHighlighter):
             return
 
 
+def _first_available_style(names):
+    try:
+        from pygments.styles import get_style_by_name
+    except Exception:
+        return None
+    for nm in names:
+        try:
+            if nm:
+                get_style_by_name(nm)
+                return nm
+        except Exception:
+            continue
+    return None
+
+
 def create_disassembly_highlighter(document, arch_name: str = "x86_64", style_name: str | None = None):
     """Create a syntax highlighter for disassembly text.
 
@@ -393,18 +408,19 @@ def create_disassembly_highlighter(document, arch_name: str = "x86_64", style_na
     """
     # Try Pygments first with a few style fallbacks
     try:
-        style_candidates = []
-        if style_name:
-            style_candidates.append(style_name)
-        style_candidates.extend(["monokai", "native", "default"])
+        # Choose a real pygments style if available; prefer the requested one
+        # We explicitly check style existence to avoid silent fallback to 'default'.
+        preferred = [style_name] if style_name else []
+        # Try popular dark/light fallbacks as secondary options
+        preferred.extend(["dracula", "rainbow_dash", "monokai", "native", "default"])  # order matters
+        sty = _first_available_style(preferred) or "default"
         last_exc = None
         for lexname in ("nasm", "asm"):
-            for sty in style_candidates:
-                try:
-                    return PygmentsHighlighter(document, lexer_name=lexname, style_name=sty)
-                except Exception as exc:
-                    last_exc = exc
-                    continue
+            try:
+                return PygmentsHighlighter(document, lexer_name=lexname, style_name=sty)
+            except Exception as exc:
+                last_exc = exc
+                continue
         if last_exc:
             raise last_exc
     except Exception:
@@ -485,6 +501,7 @@ def create_code_highlighter(document, lexer_name: str = "text", style_name: str 
     dependency-free simple highlighter on failure.
     """
     try:
-        return PygmentsHighlighter(document, lexer_name=lexer_name, style_name=style_name or "default")
+        sty = _first_available_style([style_name, "dracula", "rainbow_dash", "monokai", "native", "default"]) or "default"
+        return PygmentsHighlighter(document, lexer_name=lexer_name, style_name=sty)
     except Exception:
         return SimpleCodeHighlighter(document)

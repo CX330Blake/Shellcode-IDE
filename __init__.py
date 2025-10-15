@@ -33,7 +33,7 @@ def _register_bn_actions():
     """
     try:
         import binaryninja as bn
-        from binaryninja import PluginCommand
+        # PluginCommand is no longer used for opening the window to avoid a disabled Plugins item
         from binaryninjaui import UIAction, Menu, UIActionHandler
     except Exception:
         # Not running in BN UI, nothing to register
@@ -46,37 +46,42 @@ def _register_bn_actions():
         win = ShellcodeIDEWindow(parent=None, bn_api=bn)
         win.show()
 
+    # Validator to keep the action always enabled regardless of context
+    def always_enabled(_context) -> bool:
+        return True
+
     # Register a global UI action so it appears in the Command Palette
     action_name = "Shellcode IDE: Open"
     UIAction.registerAction(action_name)
     # Bind using a UIAction wrapper; BN expects a UIAction instance, not a raw function
-    UIActionHandler.globalActions().bindAction(action_name, UIAction(open_window))
+    UIActionHandler.globalActions().bindAction(action_name, UIAction(open_window, always_enabled))
 
-    # Add the action to the Tools menu (so it's visible in menus and Palette)
+    # Add the action to the Plugins menu so it is always clickable
     try:
-        # Preferred: add under Tools -> Shellcode IDE
-        Menu.mainMenu("Tools").addAction("Shellcode IDE", action_name)
+        # Preferred: add under Plugins -> Shellcode IDE
+        Menu.mainMenu("Plugins").addAction("Shellcode IDE", action_name)
     except Exception:
         try:
             # Fallback signatures for older BN builds
-            Menu.mainMenu("Tools").addAction(action_name)
+            Menu.mainMenu("Plugins").addAction(action_name)
         except Exception:
             try:
                 # Last-resort path notation
-                Menu().addAction("Tools\\Shellcode IDE", action_name)
+                Menu().addAction("Plugins\\Shellcode IDE", action_name)
             except Exception:
                 pass
 
-    # Register a Plugins/Tools command as well for BV context
-    # Using a namespaced label creates a submenu structure automatically.
+    # Also add under Tools for convenience, but Plugins is primary
     try:
-        PluginCommand.register("Shellcode IDE\\Open", "Open the Shellcode IDE window", lambda bv: open_window(None))
+        Menu.mainMenu("Tools").addAction("Shellcode IDE", action_name)
     except Exception:
-        # Fallback single-level label
         try:
-            PluginCommand.register("Shellcode IDE", "Open the Shellcode IDE window", lambda bv: open_window(None))
+            Menu.mainMenu("Tools").addAction(action_name)
         except Exception:
-            pass
+            try:
+                Menu().addAction("Tools\\Shellcode IDE", action_name)
+            except Exception:
+                pass
 
 
 def launch_standalone():
