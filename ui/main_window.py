@@ -63,7 +63,12 @@ from ..backends.validator import BadPatternManager, validate_all
 from ..utils.config import load_config, save_config
 from .patterns_dialog import PatternsDialog
 from .patterns_panel import PatternsPanel
-from .highlighters import create_disassembly_highlighter, HexBadByteHighlighter, AsmObjdumpBadByteHighlighter
+from .highlighters import (
+    create_disassembly_highlighter,
+    create_code_highlighter,
+    HexBadByteHighlighter,
+    AsmObjdumpBadByteHighlighter,
+)
 from .optimize_panel import OptimizePanel
 from ..formatters.base import (
     bytes_to_c_array,
@@ -225,6 +230,29 @@ class ShellcodeIDEWindow(QMainWindow):
         # Tabs fill space so borders align
         right_layout.addWidget(self.output_tabs, 1)
 
+        # Syntax highlighting for Output tab code blocks (with fallback)
+        try:
+            sty = self._preferred_style()
+            self.inline_code_hl = create_code_highlighter(self.inline_text.document(), lexer_name="python", style_name=sty)
+        except Exception:
+            self.inline_code_hl = None
+        try:
+            sty = self._preferred_style()
+            self.c_code_hl = create_code_highlighter(self.c_text.document(), lexer_name="c", style_name=sty)
+        except Exception:
+            self.c_code_hl = None
+        try:
+            sty = self._preferred_style()
+            self.py_code_hl = create_code_highlighter(self.py_text.document(), lexer_name="python", style_name=sty)
+        except Exception:
+            self.py_code_hl = None
+        try:
+            sty = self._preferred_style()
+            # Pygments supports 'zig' in newer versions; fallback kicks in otherwise
+            self.zig_code_hl = create_code_highlighter(self.zig_text.document(), lexer_name="zig", style_name=sty)
+        except Exception:
+            self.zig_code_hl = None
+
         # Bad-chars editor as its own tab (Dev mode)
         self.patterns_widget = PatternsPanel(self.bpm, self)
         self.output_tabs.addTab(self.patterns_widget, "Bad Chars")
@@ -277,28 +305,18 @@ class ShellcodeIDEWindow(QMainWindow):
             self.mode_combo.currentIndexChanged.connect(self.on_mode_changed)
         except Exception:
             pass
-        # Default to analysis (hex) if first tab is Hex; else assemble
+        # Default to Dev (assemble) mode regardless of initial tab
         try:
-            cur = self.input_tabs.currentWidget()
-            if cur is self.hex_edit:
-                self._update_toolbar_for_mode("disassemble")
-                try:
-                    self.mode_combo.blockSignals(True)
-                    self.mode_combo.setCurrentIndex(1)  # Analysis
-                    self.mode_combo.blockSignals(False)
-                except Exception:
-                    pass
-            else:
-                self._update_toolbar_for_mode("assemble")
-                try:
-                    self.mode_combo.blockSignals(True)
-                    self.mode_combo.setCurrentIndex(0)  # Dev
-                    self.mode_combo.blockSignals(False)
-                except Exception:
-                    pass
+            self._update_toolbar_for_mode("assemble")
+            try:
+                self.mode_combo.blockSignals(True)
+                self.mode_combo.setCurrentIndex(0)  # Dev
+                self.mode_combo.blockSignals(False)
+            except Exception:
+                pass
             # Enforce initial tab visibility based on current mode
             try:
-                self.on_mode_changed(self.mode_combo.currentIndex())
+                self.on_mode_changed(0)
             except Exception:
                 pass
         except Exception:
@@ -779,6 +797,43 @@ class ShellcodeIDEWindow(QMainWindow):
                 pass
         except Exception:
             self.asm_highlighter = None
+        # Output tab code highlighters (refresh for style changes)
+        try:
+            if hasattr(self, 'inline_code_hl') and self.inline_code_hl:
+                try:
+                    self.inline_code_hl.setDocument(None)
+                except Exception:
+                    pass
+            self.inline_code_hl = create_code_highlighter(self.inline_text.document(), lexer_name="python", style_name=style)
+        except Exception:
+            self.inline_code_hl = None
+        try:
+            if hasattr(self, 'c_code_hl') and self.c_code_hl:
+                try:
+                    self.c_code_hl.setDocument(None)
+                except Exception:
+                    pass
+            self.c_code_hl = create_code_highlighter(self.c_text.document(), lexer_name="c", style_name=style)
+        except Exception:
+            self.c_code_hl = None
+        try:
+            if hasattr(self, 'py_code_hl') and self.py_code_hl:
+                try:
+                    self.py_code_hl.setDocument(None)
+                except Exception:
+                    pass
+            self.py_code_hl = create_code_highlighter(self.py_text.document(), lexer_name="python", style_name=style)
+        except Exception:
+            self.py_code_hl = None
+        try:
+            if hasattr(self, 'zig_code_hl') and self.zig_code_hl:
+                try:
+                    self.zig_code_hl.setDocument(None)
+                except Exception:
+                    pass
+            self.zig_code_hl = create_code_highlighter(self.zig_text.document(), lexer_name="zig", style_name=style)
+        except Exception:
+            self.zig_code_hl = None
 
     def _show_badchars_controls(self, show: bool):
         """Show/hide the bad-chars controls (checkbox + Edit…) in Dev mode only."""
