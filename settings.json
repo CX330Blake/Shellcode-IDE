@@ -19,5 +19,8 @@
       "enabled": false
     }
   ],
-  "bad_highlight_enabled": true
+  "bad_highlight_enabled": true,
+  "syscall_favorites": {
+    "x64": []
+  }
 }

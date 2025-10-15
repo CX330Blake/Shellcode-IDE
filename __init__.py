@@ -71,17 +71,7 @@ def _register_bn_actions():
             except Exception:
                 pass
 
-    # Also add under Tools for convenience, but Plugins is primary
-    try:
-        Menu.mainMenu("Tools").addAction(action_name, action_name)
-    except Exception:
-        try:
-            Menu.mainMenu("Tools").addAction(action_name)
-        except Exception:
-            try:
-                Menu().addAction(f"Tools\\{action_name}", action_name)
-            except Exception:
-                pass
+    # Do not add under Tools per user request; Plugins menu entry above is sufficient
 
 
 def launch_standalone():

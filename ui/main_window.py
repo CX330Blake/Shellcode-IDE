@@ -70,6 +70,8 @@ from .highlighters import (
     AsmObjdumpBadByteHighlighter,
 )
 from .optimize_panel import OptimizePanel
+from .syscalls_panel import SyscallsPanel
+from ..backends.syscalls import canonical_arch
 from ..formatters.base import (
     bytes_to_c_array,
     bytes_to_hex,
@@ -257,6 +259,26 @@ class ShellcodeIDEWindow(QMainWindow):
         self.patterns_widget = PatternsPanel(self.bpm, self)
         self.output_tabs.addTab(self.patterns_widget, "Bad Chars")
 
+        # Syscalls tab (visible in both modes)
+        def _insert_snippet(snippet: str) -> None:
+            try:
+                cursor = self.asm_edit.textCursor()  # type: ignore[attr-defined]
+                try:
+                    cursor.insertText(snippet)
+                except Exception:
+                    # Fallback: append
+                    self.asm_edit.appendPlainText(snippet)
+            except Exception:
+                # final fallback
+                self.asm_edit.appendPlainText(snippet)
+
+        self.syscalls_widget = SyscallsPanel(
+            get_arch_cb=lambda: (self.arch_combo.currentText() or "x86_64"),
+            insert_asm_cb=_insert_snippet,
+            parent=self,
+        )
+        self.output_tabs.addTab(self.syscalls_widget, "Syscalls")
+
         # Validation tab (container with a button bar and text)
         val_container = QWidget()
         val_layout = QVBoxLayout(val_container)
@@ -328,6 +350,11 @@ class ShellcodeIDEWindow(QMainWindow):
         # Update highlighter when arch changes
         try:
             self.arch_combo.currentTextChanged.connect(lambda _t: self._refresh_disasm_highlighter())
+        except Exception:
+            pass
+        # Also refresh/hide syscalls tab on arch change
+        try:
+            self.arch_combo.currentTextChanged.connect(lambda _t: self._refresh_syscalls_tab())
         except Exception:
             pass
         # Add Pygments to Assembly editor as well
@@ -417,6 +444,13 @@ class ShellcodeIDEWindow(QMainWindow):
             self._set_tab_visible(self.output_tabs, self.debug_widget, True)
             self._set_tab_visible(self.output_tabs, self.optimize_widget, True)
             self._set_tab_visible(self.output_tabs, self.formats_widget, True)
+            # Syscalls visible in Dev mode
+            # Syscalls visible only when supported for current arch
+            try:
+                sys_ok = canonical_arch(self.arch_combo.currentText() or "") is not None
+            except Exception:
+                sys_ok = False
+            self._set_tab_visible(self.output_tabs, self.syscalls_widget, bool(sys_ok))
             try:
                 self.output_tabs.setCurrentWidget(self.debug_widget)
             except Exception:
@@ -444,6 +478,12 @@ class ShellcodeIDEWindow(QMainWindow):
             self._set_tab_visible(self.output_tabs, self.output_text, True)
             self._set_tab_visible(self.output_tabs, self.debug_widget, False)
             self._set_tab_visible(self.output_tabs, self.optimize_widget, False)
+            # Syscalls visible in Analysis mode only when supported
+            try:
+                sys_ok = canonical_arch(self.arch_combo.currentText() or "") is not None
+            except Exception:
+                sys_ok = False
+            self._set_tab_visible(self.output_tabs, self.syscalls_widget, bool(sys_ok))
             try:
                 self.output_tabs.setCurrentWidget(self.output_text)
             except Exception:
@@ -530,6 +570,24 @@ class ShellcodeIDEWindow(QMainWindow):
         copy_btn = QPushButton("Copy")
         copy_btn.setFixedWidth(60)
         l.addWidget(lbl)
+        # Extra controls per block
+        if text == "Hex":
+            try:
+                self.hex_no_space_chk = QCheckBox("No space")
+                self.hex_no_space_chk.setToolTip("Remove spaces between hex bytes in output")
+                # Default: spaces (unchecked)
+                self.hex_no_space_chk.setChecked(False)
+                # Update live when toggled
+                def _on_hex_space_toggle(_state: int):
+                    try:
+                        self._refresh_hex_output()
+                    except Exception:
+                        pass
+                self.hex_no_space_chk.stateChanged.connect(_on_hex_space_toggle)
+                l.addSpacing(8)
+                l.addWidget(self.hex_no_space_chk)
+            except Exception:
+                pass
         l.addStretch(1)
         l.addWidget(copy_btn)
         # Bind copy for the next widget added after label in layout usage
@@ -562,6 +620,13 @@ class ShellcodeIDEWindow(QMainWindow):
             self.arch_combo.addItem(a)
         if self.arch_combo.count() == 0:
             self.arch_combo.addItem("x86_64")
+        # Default-select x86_64 when available
+        try:
+            idx = self.arch_combo.findText("x86_64")
+            if idx >= 0:
+                self.arch_combo.setCurrentIndex(idx)
+        except Exception:
+            pass
 
     def _update_stats(self, raw: bytes):
         arch = self.arch_combo.currentText()
@@ -656,10 +721,26 @@ class ShellcodeIDEWindow(QMainWindow):
 
     def _update_formats(self, data: bytes):
         self.inline_text.setPlainText(bytes_to_inline(data))
-        self.hex_text.setPlainText(bytes_to_hex(data, sep=" "))
+        # Respect the Hex "No space" option
+        try:
+            self._refresh_hex_output(data)
+        except Exception:
+            self.hex_text.setPlainText(bytes_to_hex(data, sep=" "))
         self.c_text.setPlainText(bytes_to_c_array(data, var_name="shellcode", include_len=True))
         self.py_text.setPlainText(bytes_to_python_bytes(data, style="literal"))
         self.zig_text.setPlainText(bytes_to_zig_array(data, var_name="shellcode"))
+
+    def _refresh_hex_output(self, data: Optional[bytes] = None):
+        """Refresh the Hex output area honoring the no-space checkbox."""
+        try:
+            ns = bool(getattr(self, 'hex_no_space_chk', None) and self.hex_no_space_chk.isChecked())
+        except Exception:
+            ns = False
+        sep = "" if ns else " "
+        buf = data if data is not None else getattr(self, '_last_bytes', b"")
+        if not isinstance(buf, (bytes, bytearray)):
+            buf = b""
+        self.hex_text.setPlainText(bytes_to_hex(buf, sep=sep))
 
     def _update_opcode(self, data: bytes):
         # Update opcode pane with hex bytes
@@ -797,6 +878,11 @@ class ShellcodeIDEWindow(QMainWindow):
                 pass
         except Exception:
             self.asm_highlighter = None
+        # Initialize Syscalls tab state
+        try:
+            self._refresh_syscalls_tab()
+        except Exception:
+            pass
         # Output tab code highlighters (refresh for style changes)
         try:
             if hasattr(self, 'inline_code_hl') and self.inline_code_hl:
@@ -867,6 +953,34 @@ class ShellcodeIDEWindow(QMainWindow):
                 self.input_tabs.setCurrentWidget(self.hex_edit)
         except Exception:
             pass
+
+    def _refresh_syscalls_tab(self):
+        """Show/hide Syscalls tab based on current arch and refresh when shown."""
+        try:
+            arch = self.arch_combo.currentText() or ""
+        except Exception:
+            arch = ""
+        try:
+            supported = canonical_arch(arch) is not None
+        except Exception:
+            supported = False
+        # Toggle visibility
+        try:
+            self._set_tab_visible(self.output_tabs, self.syscalls_widget, bool(supported))
+        except Exception:
+            pass
+        if supported:
+            try:
+                self.syscalls_widget.reload()
+            except Exception:
+                pass
+        else:
+            # If currently selected, nudge to a safe tab
+            try:
+                if self.output_tabs.currentWidget() is self.syscalls_widget:
+                    self.output_tabs.setCurrentWidget(self.output_text)
+            except Exception:
+                pass
 
     def on_validate(self):
         arch = self.arch_combo.currentText() or "x86_64"

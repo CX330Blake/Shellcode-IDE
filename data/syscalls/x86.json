@@ -1,0 +1,3507 @@
+[
+  {
+    "nr": 0,
+    "name": "restart_syscall",
+    "args": []
+  },
+  {
+    "nr": 1,
+    "name": "exit",
+    "args": [
+      "error_code"
+    ]
+  },
+  {
+    "nr": 2,
+    "name": "fork",
+    "args": []
+  },
+  {
+    "nr": 3,
+    "name": "read",
+    "args": [
+      "fd",
+      "buf",
+      "count"
+    ]
+  },
+  {
+    "nr": 4,
+    "name": "write",
+    "args": [
+      "fd",
+      "buf",
+      "count"
+    ]
+  },
+  {
+    "nr": 5,
+    "name": "open",
+    "args": [
+      "filename",
+      "flags",
+      "mode"
+    ]
+  },
+  {
+    "nr": 6,
+    "name": "close",
+    "args": [
+      "fd"
+    ]
+  },
+  {
+    "nr": 7,
+    "name": "waitpid",
+    "args": [
+      "pid",
+      "stat_addr",
+      "options"
+    ]
+  },
+  {
+    "nr": 8,
+    "name": "creat",
+    "args": [
+      "pathname",
+      "mode"
+    ]
+  },
+  {
+    "nr": 9,
+    "name": "link",
+    "args": [
+      "oldname",
+      "newname"
+    ]
+  },
+  {
+    "nr": 10,
+    "name": "unlink",
+    "args": [
+      "pathname"
+    ]
+  },
+  {
+    "nr": 11,
+    "name": "execve",
+    "args": [
+      "filename",
+      "argv",
+      "envp"
+    ]
+  },
+  {
+    "nr": 12,
+    "name": "chdir",
+    "args": [
+      "filename"
+    ]
+  },
+  {
+    "nr": 13,
+    "name": "time",
+    "args": [
+      "tloc"
+    ]
+  },
+  {
+    "nr": 14,
+    "name": "mknod",
+    "args": [
+      "filename",
+      "mode",
+      "dev"
+    ]
+  },
+  {
+    "nr": 15,
+    "name": "chmod",
+    "args": [
+      "filename",
+      "mode"
+    ]
+  },
+  {
+    "nr": 16,
+    "name": "lchown",
+    "args": [
+      "filename",
+      "user",
+      "group"
+    ]
+  },
+  {
+    "nr": 17,
+    "name": "break",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 18,
+    "name": "oldstat",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 19,
+    "name": "lseek",
+    "args": [
+      "fd",
+      "offset",
+      "whence"
+    ]
+  },
+  {
+    "nr": 20,
+    "name": "getpid",
+    "args": []
+  },
+  {
+    "nr": 21,
+    "name": "mount",
+    "args": [
+      "dev_name",
+      "dir_name",
+      "type",
+      "flags",
+      "data"
+    ]
+  },
+  {
+    "nr": 22,
+    "name": "umount",
+    "args": [
+      "name",
+      "flags"
+    ]
+  },
+  {
+    "nr": 23,
+    "name": "setuid",
+    "args": [
+      "uid"
+    ]
+  },
+  {
+    "nr": 24,
+    "name": "getuid",
+    "args": []
+  },
+  {
+    "nr": 25,
+    "name": "stime",
+    "args": [
+      "tptr"
+    ]
+  },
+  {
+    "nr": 26,
+    "name": "ptrace",
+    "args": [
+      "request",
+      "pid",
+      "addr",
+      "data"
+    ]
+  },
+  {
+    "nr": 27,
+    "name": "alarm",
+    "args": [
+      "seconds"
+    ]
+  },
+  {
+    "nr": 28,
+    "name": "oldfstat",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 29,
+    "name": "pause",
+    "args": []
+  },
+  {
+    "nr": 30,
+    "name": "utime",
+    "args": [
+      "filename",
+      "times"
+    ]
+  },
+  {
+    "nr": 31,
+    "name": "stty",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 32,
+    "name": "gtty",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 33,
+    "name": "access",
+    "args": [
+      "filename",
+      "mode"
+    ]
+  },
+  {
+    "nr": 34,
+    "name": "nice",
+    "args": [
+      "increment"
+    ]
+  },
+  {
+    "nr": 35,
+    "name": "ftime",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 36,
+    "name": "sync",
+    "args": []
+  },
+  {
+    "nr": 37,
+    "name": "kill",
+    "args": [
+      "pid",
+      "sig"
+    ]
+  },
+  {
+    "nr": 38,
+    "name": "rename",
+    "args": [
+      "oldname",
+      "newname"
+    ]
+  },
+  {
+    "nr": 39,
+    "name": "mkdir",
+    "args": [
+      "pathname",
+      "mode"
+    ]
+  },
+  {
+    "nr": 40,
+    "name": "rmdir",
+    "args": [
+      "pathname"
+    ]
+  },
+  {
+    "nr": 41,
+    "name": "dup",
+    "args": [
+      "fildes"
+    ]
+  },
+  {
+    "nr": 42,
+    "name": "pipe",
+    "args": [
+      "fildes"
+    ]
+  },
+  {
+    "nr": 43,
+    "name": "times",
+    "args": [
+      "tbuf"
+    ]
+  },
+  {
+    "nr": 44,
+    "name": "prof",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 45,
+    "name": "brk",
+    "args": [
+      "brk"
+    ]
+  },
+  {
+    "nr": 46,
+    "name": "setgid",
+    "args": [
+      "gid"
+    ]
+  },
+  {
+    "nr": 47,
+    "name": "getgid",
+    "args": []
+  },
+  {
+    "nr": 48,
+    "name": "signal",
+    "args": [
+      "sig",
+      "handler"
+    ]
+  },
+  {
+    "nr": 49,
+    "name": "geteuid",
+    "args": []
+  },
+  {
+    "nr": 50,
+    "name": "getegid",
+    "args": []
+  },
+  {
+    "nr": 51,
+    "name": "acct",
+    "args": [
+      "name"
+    ]
+  },
+  {
+    "nr": 52,
+    "name": "umount2",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 53,
+    "name": "lock",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 54,
+    "name": "ioctl",
+    "args": [
+      "fd",
+      "cmd",
+      "arg"
+    ]
+  },
+  {
+    "nr": 55,
+    "name": "fcntl",
+    "args": [
+      "fd",
+      "cmd",
+      "arg"
+    ]
+  },
+  {
+    "nr": 56,
+    "name": "mpx",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 57,
+    "name": "setpgid",
+    "args": [
+      "pid",
+      "pgid"
+    ]
+  },
+  {
+    "nr": 58,
+    "name": "ulimit",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 59,
+    "name": "oldolduname",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 60,
+    "name": "umask",
+    "args": [
+      "mask"
+    ]
+  },
+  {
+    "nr": 61,
+    "name": "chroot",
+    "args": [
+      "filename"
+    ]
+  },
+  {
+    "nr": 62,
+    "name": "ustat",
+    "args": [
+      "dev",
+      "ubuf"
+    ]
+  },
+  {
+    "nr": 63,
+    "name": "dup2",
+    "args": [
+      "oldfd",
+      "newfd"
+    ]
+  },
+  {
+    "nr": 64,
+    "name": "getppid",
+    "args": []
+  },
+  {
+    "nr": 65,
+    "name": "getpgrp",
+    "args": []
+  },
+  {
+    "nr": 66,
+    "name": "setsid",
+    "args": []
+  },
+  {
+    "nr": 67,
+    "name": "sigaction",
+    "args": [
+      "int",
+      "const struct old_sigaction *",
+      "struct old_sigaction *"
+    ]
+  },
+  {
+    "nr": 68,
+    "name": "sgetmask",
+    "args": []
+  },
+  {
+    "nr": 69,
+    "name": "ssetmask",
+    "args": [
+      "newmask"
+    ]
+  },
+  {
+    "nr": 70,
+    "name": "setreuid",
+    "args": [
+      "ruid",
+      "euid"
+    ]
+  },
+  {
+    "nr": 71,
+    "name": "setregid",
+    "args": [
+      "rgid",
+      "egid"
+    ]
+  },
+  {
+    "nr": 72,
+    "name": "sigsuspend",
+    "args": [
+      "unused1",
+      "unused2",
+      "mask"
+    ]
+  },
+  {
+    "nr": 73,
+    "name": "sigpending",
+    "args": [
+      "uset"
+    ]
+  },
+  {
+    "nr": 74,
+    "name": "sethostname",
+    "args": [
+      "name",
+      "len"
+    ]
+  },
+  {
+    "nr": 75,
+    "name": "setrlimit",
+    "args": [
+      "resource",
+      "rlim"
+    ]
+  },
+  {
+    "nr": 76,
+    "name": "getrlimit",
+    "args": [
+      "resource",
+      "rlim"
+    ]
+  },
+  {
+    "nr": 77,
+    "name": "getrusage",
+    "args": [
+      "who",
+      "ru"
+    ]
+  },
+  {
+    "nr": 78,
+    "name": "gettimeofday",
+    "args": [
+      "tv",
+      "tz"
+    ]
+  },
+  {
+    "nr": 79,
+    "name": "settimeofday",
+    "args": [
+      "tv",
+      "tz"
+    ]
+  },
+  {
+    "nr": 80,
+    "name": "getgroups",
+    "args": [
+      "gidsetsize",
+      "grouplist"
+    ]
+  },
+  {
+    "nr": 81,
+    "name": "setgroups",
+    "args": [
+      "gidsetsize",
+      "grouplist"
+    ]
+  },
+  {
+    "nr": 82,
+    "name": "select",
+    "args": [
+      "n",
+      "inp",
+      "outp",
+      "exp",
+      "tvp"
+    ]
+  },
+  {
+    "nr": 83,
+    "name": "symlink",
+    "args": [
+      "old",
+      "new"
+    ]
+  },
+  {
+    "nr": 84,
+    "name": "oldlstat",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 85,
+    "name": "readlink",
+    "args": [
+      "path",
+      "buf",
+      "bufsiz"
+    ]
+  },
+  {
+    "nr": 86,
+    "name": "uselib",
+    "args": [
+      "library"
+    ]
+  },
+  {
+    "nr": 87,
+    "name": "swapon",
+    "args": [
+      "specialfile",
+      "swap_flags"
+    ]
+  },
+  {
+    "nr": 88,
+    "name": "reboot",
+    "args": [
+      "magic1",
+      "magic2",
+      "cmd",
+      "arg"
+    ]
+  },
+  {
+    "nr": 89,
+    "name": "readdir",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 90,
+    "name": "mmap",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 91,
+    "name": "munmap",
+    "args": [
+      "addr",
+      "len"
+    ]
+  },
+  {
+    "nr": 92,
+    "name": "truncate",
+    "args": [
+      "path",
+      "length"
+    ]
+  },
+  {
+    "nr": 93,
+    "name": "ftruncate",
+    "args": [
+      "fd",
+      "length"
+    ]
+  },
+  {
+    "nr": 94,
+    "name": "fchmod",
+    "args": [
+      "fd",
+      "mode"
+    ]
+  },
+  {
+    "nr": 95,
+    "name": "fchown",
+    "args": [
+      "fd",
+      "user",
+      "group"
+    ]
+  },
+  {
+    "nr": 96,
+    "name": "getpriority",
+    "args": [
+      "which",
+      "who"
+    ]
+  },
+  {
+    "nr": 97,
+    "name": "setpriority",
+    "args": [
+      "which",
+      "who",
+      "niceval"
+    ]
+  },
+  {
+    "nr": 98,
+    "name": "profil",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 99,
+    "name": "statfs",
+    "args": [
+      "path",
+      "buf"
+    ]
+  },
+  {
+    "nr": 100,
+    "name": "fstatfs",
+    "args": [
+      "fd",
+      "buf"
+    ]
+  },
+  {
+    "nr": 101,
+    "name": "ioperm",
+    "args": [
+      "from",
+      "num",
+      "on"
+    ]
+  },
+  {
+    "nr": 102,
+    "name": "socketcall",
+    "args": [
+      "call",
+      "args"
+    ]
+  },
+  {
+    "nr": 103,
+    "name": "syslog",
+    "args": [
+      "type",
+      "buf",
+      "len"
+    ]
+  },
+  {
+    "nr": 104,
+    "name": "setitimer",
+    "args": [
+      "which",
+      "value",
+      "ovalue"
+    ]
+  },
+  {
+    "nr": 105,
+    "name": "getitimer",
+    "args": [
+      "which",
+      "value"
+    ]
+  },
+  {
+    "nr": 106,
+    "name": "stat",
+    "args": [
+      "filename",
+      "statbuf"
+    ]
+  },
+  {
+    "nr": 107,
+    "name": "lstat",
+    "args": [
+      "filename",
+      "statbuf"
+    ]
+  },
+  {
+    "nr": 108,
+    "name": "fstat",
+    "args": [
+      "fd",
+      "statbuf"
+    ]
+  },
+  {
+    "nr": 109,
+    "name": "olduname",
+    "args": [
+      "struct oldold_utsname *"
+    ]
+  },
+  {
+    "nr": 110,
+    "name": "iopl",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 111,
+    "name": "vhangup",
+    "args": []
+  },
+  {
+    "nr": 112,
+    "name": "idle",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 113,
+    "name": "vm86old",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 114,
+    "name": "wait4",
+    "args": [
+      "pid",
+      "stat_addr",
+      "options",
+      "ru"
+    ]
+  },
+  {
+    "nr": 115,
+    "name": "swapoff",
+    "args": [
+      "specialfile"
+    ]
+  },
+  {
+    "nr": 116,
+    "name": "sysinfo",
+    "args": [
+      "info"
+    ]
+  },
+  {
+    "nr": 117,
+    "name": "ipc",
+    "args": [
+      "call",
+      "first",
+      "second",
+      "third",
+      "ptr",
+      "fifth"
+    ]
+  },
+  {
+    "nr": 118,
+    "name": "fsync",
+    "args": [
+      "fd"
+    ]
+  },
+  {
+    "nr": 119,
+    "name": "sigreturn",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 120,
+    "name": "clone",
+    "args": [
+      "long",
+      "long",
+      "int *",
+      "int *",
+      "long"
+    ]
+  },
+  {
+    "nr": 121,
+    "name": "setdomainname",
+    "args": [
+      "name",
+      "len"
+    ]
+  },
+  {
+    "nr": 122,
+    "name": "uname",
+    "args": [
+      "struct old_utsname *"
+    ]
+  },
+  {
+    "nr": 123,
+    "name": "modify_ldt",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 124,
+    "name": "adjtimex",
+    "args": [
+      "txc_p"
+    ]
+  },
+  {
+    "nr": 125,
+    "name": "mprotect",
+    "args": [
+      "start",
+      "len",
+      "prot"
+    ]
+  },
+  {
+    "nr": 126,
+    "name": "sigprocmask",
+    "args": [
+      "how",
+      "set",
+      "oset"
+    ]
+  },
+  {
+    "nr": 127,
+    "name": "create_module",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 128,
+    "name": "init_module",
+    "args": [
+      "umod",
+      "len",
+      "uargs"
+    ]
+  },
+  {
+    "nr": 129,
+    "name": "delete_module",
+    "args": [
+      "name_user",
+      "flags"
+    ]
+  },
+  {
+    "nr": 130,
+    "name": "get_kernel_syms",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 131,
+    "name": "quotactl",
+    "args": [
+      "cmd",
+      "special",
+      "id",
+      "addr"
+    ]
+  },
+  {
+    "nr": 132,
+    "name": "getpgid",
+    "args": [
+      "pid"
+    ]
+  },
+  {
+    "nr": 133,
+    "name": "fchdir",
+    "args": [
+      "fd"
+    ]
+  },
+  {
+    "nr": 134,
+    "name": "bdflush",
+    "args": [
+      "func",
+      "data"
+    ]
+  },
+  {
+    "nr": 135,
+    "name": "sysfs",
+    "args": [
+      "option",
+      "arg1",
+      "arg2"
+    ]
+  },
+  {
+    "nr": 136,
+    "name": "personality",
+    "args": [
+      "personality"
+    ]
+  },
+  {
+    "nr": 137,
+    "name": "afs_syscall",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 138,
+    "name": "setfsuid",
+    "args": [
+      "uid"
+    ]
+  },
+  {
+    "nr": 139,
+    "name": "setfsgid",
+    "args": [
+      "gid"
+    ]
+  },
+  {
+    "nr": 140,
+    "name": "_llseek",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 141,
+    "name": "getdents",
+    "args": [
+      "fd",
+      "dirent",
+      "count"
+    ]
+  },
+  {
+    "nr": 142,
+    "name": "_newselect",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 143,
+    "name": "flock",
+    "args": [
+      "fd",
+      "cmd"
+    ]
+  },
+  {
+    "nr": 144,
+    "name": "msync",
+    "args": [
+      "start",
+      "len",
+      "flags"
+    ]
+  },
+  {
+    "nr": 145,
+    "name": "readv",
+    "args": [
+      "fd",
+      "vec",
+      "vlen"
+    ]
+  },
+  {
+    "nr": 146,
+    "name": "writev",
+    "args": [
+      "fd",
+      "vec",
+      "vlen"
+    ]
+  },
+  {
+    "nr": 147,
+    "name": "getsid",
+    "args": [
+      "pid"
+    ]
+  },
+  {
+    "nr": 148,
+    "name": "fdatasync",
+    "args": [
+      "fd"
+    ]
+  },
+  {
+    "nr": 149,
+    "name": "_sysctl",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 150,
+    "name": "mlock",
+    "args": [
+      "start",
+      "len"
+    ]
+  },
+  {
+    "nr": 151,
+    "name": "munlock",
+    "args": [
+      "start",
+      "len"
+    ]
+  },
+  {
+    "nr": 152,
+    "name": "mlockall",
+    "args": [
+      "flags"
+    ]
+  },
+  {
+    "nr": 153,
+    "name": "munlockall",
+    "args": []
+  },
+  {
+    "nr": 154,
+    "name": "sched_setparam",
+    "args": [
+      "pid",
+      "param"
+    ]
+  },
+  {
+    "nr": 155,
+    "name": "sched_getparam",
+    "args": [
+      "pid",
+      "param"
+    ]
+  },
+  {
+    "nr": 156,
+    "name": "sched_setscheduler",
+    "args": [
+      "pid",
+      "policy",
+      "param"
+    ]
+  },
+  {
+    "nr": 157,
+    "name": "sched_getscheduler",
+    "args": [
+      "pid"
+    ]
+  },
+  {
+    "nr": 158,
+    "name": "sched_yield",
+    "args": []
+  },
+  {
+    "nr": 159,
+    "name": "sched_get_priority_max",
+    "args": [
+      "policy"
+    ]
+  },
+  {
+    "nr": 160,
+    "name": "sched_get_priority_min",
+    "args": [
+      "policy"
+    ]
+  },
+  {
+    "nr": 161,
+    "name": "sched_rr_get_interval",
+    "args": [
+      "pid",
+      "interval"
+    ]
+  },
+  {
+    "nr": 162,
+    "name": "nanosleep",
+    "args": [
+      "rqtp",
+      "rmtp"
+    ]
+  },
+  {
+    "nr": 163,
+    "name": "mremap",
+    "args": [
+      "addr",
+      "old_len",
+      "new_len",
+      "flags",
+      "new_addr"
+    ]
+  },
+  {
+    "nr": 164,
+    "name": "setresuid",
+    "args": [
+      "ruid",
+      "euid",
+      "suid"
+    ]
+  },
+  {
+    "nr": 165,
+    "name": "getresuid",
+    "args": [
+      "ruid",
+      "euid",
+      "suid"
+    ]
+  },
+  {
+    "nr": 166,
+    "name": "vm86",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 167,
+    "name": "query_module",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 168,
+    "name": "poll",
+    "args": [
+      "ufds",
+      "nfds",
+      "timeout"
+    ]
+  },
+  {
+    "nr": 169,
+    "name": "nfsservctl",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 170,
+    "name": "setresgid",
+    "args": [
+      "rgid",
+      "egid",
+      "sgid"
+    ]
+  },
+  {
+    "nr": 171,
+    "name": "getresgid",
+    "args": [
+      "rgid",
+      "egid",
+      "sgid"
+    ]
+  },
+  {
+    "nr": 172,
+    "name": "prctl",
+    "args": [
+      "option",
+      "arg2",
+      "arg3",
+      "arg4",
+      "arg5"
+    ]
+  },
+  {
+    "nr": 173,
+    "name": "rt_sigreturn",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 174,
+    "name": "rt_sigaction",
+    "args": [
+      "int",
+      "const struct sigaction *",
+      "struct sigaction *",
+      "size_t"
+    ]
+  },
+  {
+    "nr": 175,
+    "name": "rt_sigprocmask",
+    "args": [
+      "how",
+      "set",
+      "oset",
+      "sigsetsize"
+    ]
+  },
+  {
+    "nr": 176,
+    "name": "rt_sigpending",
+    "args": [
+      "set",
+      "sigsetsize"
+    ]
+  },
+  {
+    "nr": 177,
+    "name": "rt_sigtimedwait",
+    "args": [
+      "uthese",
+      "uinfo",
+      "uts",
+      "sigsetsize"
+    ]
+  },
+  {
+    "nr": 178,
+    "name": "rt_sigqueueinfo",
+    "args": [
+      "pid",
+      "sig",
+      "uinfo"
+    ]
+  },
+  {
+    "nr": 179,
+    "name": "rt_sigsuspend",
+    "args": [
+      "unewset",
+      "sigsetsize"
+    ]
+  },
+  {
+    "nr": 180,
+    "name": "pread64",
+    "args": [
+      "fd",
+      "buf",
+      "count",
+      "pos"
+    ]
+  },
+  {
+    "nr": 181,
+    "name": "pwrite64",
+    "args": [
+      "fd",
+      "buf",
+      "count",
+      "pos"
+    ]
+  },
+  {
+    "nr": 182,
+    "name": "chown",
+    "args": [
+      "filename",
+      "user",
+      "group"
+    ]
+  },
+  {
+    "nr": 183,
+    "name": "getcwd",
+    "args": [
+      "buf",
+      "size"
+    ]
+  },
+  {
+    "nr": 184,
+    "name": "capget",
+    "args": [
+      "header",
+      "dataptr"
+    ]
+  },
+  {
+    "nr": 185,
+    "name": "capset",
+    "args": [
+      "header",
+      "data"
+    ]
+  },
+  {
+    "nr": 186,
+    "name": "sigaltstack",
+    "args": [
+      "uss",
+      "uoss"
+    ]
+  },
+  {
+    "nr": 187,
+    "name": "sendfile",
+    "args": [
+      "out_fd",
+      "in_fd",
+      "offset",
+      "count"
+    ]
+  },
+  {
+    "nr": 188,
+    "name": "getpmsg",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 189,
+    "name": "putpmsg",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 190,
+    "name": "vfork",
+    "args": []
+  },
+  {
+    "nr": 191,
+    "name": "ugetrlimit",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 192,
+    "name": "mmap2",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 193,
+    "name": "truncate64",
+    "args": [
+      "path",
+      "length"
+    ]
+  },
+  {
+    "nr": 194,
+    "name": "ftruncate64",
+    "args": [
+      "fd",
+      "length"
+    ]
+  },
+  {
+    "nr": 195,
+    "name": "stat64",
+    "args": [
+      "filename",
+      "statbuf"
+    ]
+  },
+  {
+    "nr": 196,
+    "name": "lstat64",
+    "args": [
+      "filename",
+      "statbuf"
+    ]
+  },
+  {
+    "nr": 197,
+    "name": "fstat64",
+    "args": [
+      "fd",
+      "statbuf"
+    ]
+  },
+  {
+    "nr": 198,
+    "name": "lchown32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 199,
+    "name": "getuid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 200,
+    "name": "getgid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 201,
+    "name": "geteuid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 202,
+    "name": "getegid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 203,
+    "name": "setreuid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 204,
+    "name": "setregid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 205,
+    "name": "getgroups32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 206,
+    "name": "setgroups32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 207,
+    "name": "fchown32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 208,
+    "name": "setresuid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 209,
+    "name": "getresuid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 210,
+    "name": "setresgid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 211,
+    "name": "getresgid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 212,
+    "name": "chown32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 213,
+    "name": "setuid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 214,
+    "name": "setgid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 215,
+    "name": "setfsuid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 216,
+    "name": "setfsgid32",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 217,
+    "name": "pivot_root",
+    "args": [
+      "new_root",
+      "put_old"
+    ]
+  },
+  {
+    "nr": 218,
+    "name": "mincore",
+    "args": [
+      "start",
+      "len",
+      "vec"
+    ]
+  },
+  {
+    "nr": 219,
+    "name": "madvise",
+    "args": [
+      "start",
+      "len",
+      "behavior"
+    ]
+  },
+  {
+    "nr": 220,
+    "name": "getdents64",
+    "args": [
+      "fd",
+      "dirent",
+      "count"
+    ]
+  },
+  {
+    "nr": 221,
+    "name": "fcntl64",
+    "args": [
+      "fd",
+      "cmd",
+      "arg"
+    ]
+  },
+  {
+    "nr": 222,
+    "name": "not implemented",
+    "args": []
+  },
+  {
+    "nr": 223,
+    "name": "not implemented",
+    "args": []
+  },
+  {
+    "nr": 224,
+    "name": "gettid",
+    "args": []
+  },
+  {
+    "nr": 225,
+    "name": "readahead",
+    "args": [
+      "fd",
+      "offset",
+      "count"
+    ]
+  },
+  {
+    "nr": 226,
+    "name": "setxattr",
+    "args": [
+      "path",
+      "name",
+      "value",
+      "size",
+      "flags"
+    ]
+  },
+  {
+    "nr": 227,
+    "name": "lsetxattr",
+    "args": [
+      "path",
+      "name",
+      "value",
+      "size",
+      "flags"
+    ]
+  },
+  {
+    "nr": 228,
+    "name": "fsetxattr",
+    "args": [
+      "fd",
+      "name",
+      "value",
+      "size",
+      "flags"
+    ]
+  },
+  {
+    "nr": 229,
+    "name": "getxattr",
+    "args": [
+      "path",
+      "name",
+      "value",
+      "size"
+    ]
+  },
+  {
+    "nr": 230,
+    "name": "lgetxattr",
+    "args": [
+      "path",
+      "name",
+      "value",
+      "size"
+    ]
+  },
+  {
+    "nr": 231,
+    "name": "fgetxattr",
+    "args": [
+      "fd",
+      "name",
+      "value",
+      "size"
+    ]
+  },
+  {
+    "nr": 232,
+    "name": "listxattr",
+    "args": [
+      "path",
+      "list",
+      "size"
+    ]
+  },
+  {
+    "nr": 233,
+    "name": "llistxattr",
+    "args": [
+      "path",
+      "list",
+      "size"
+    ]
+  },
+  {
+    "nr": 234,
+    "name": "flistxattr",
+    "args": [
+      "fd",
+      "list",
+      "size"
+    ]
+  },
+  {
+    "nr": 235,
+    "name": "removexattr",
+    "args": [
+      "path",
+      "name"
+    ]
+  },
+  {
+    "nr": 236,
+    "name": "lremovexattr",
+    "args": [
+      "path",
+      "name"
+    ]
+  },
+  {
+    "nr": 237,
+    "name": "fremovexattr",
+    "args": [
+      "fd",
+      "name"
+    ]
+  },
+  {
+    "nr": 238,
+    "name": "tkill",
+    "args": [
+      "pid",
+      "sig"
+    ]
+  },
+  {
+    "nr": 239,
+    "name": "sendfile64",
+    "args": [
+      "out_fd",
+      "in_fd",
+      "offset",
+      "count"
+    ]
+  },
+  {
+    "nr": 240,
+    "name": "futex",
+    "args": [
+      "uaddr",
+      "op",
+      "val",
+      "utime",
+      "uaddr2",
+      "val3"
+    ]
+  },
+  {
+    "nr": 241,
+    "name": "sched_setaffinity",
+    "args": [
+      "pid",
+      "len",
+      "user_mask_ptr"
+    ]
+  },
+  {
+    "nr": 242,
+    "name": "sched_getaffinity",
+    "args": [
+      "pid",
+      "len",
+      "user_mask_ptr"
+    ]
+  },
+  {
+    "nr": 243,
+    "name": "set_thread_area",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 244,
+    "name": "get_thread_area",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 245,
+    "name": "io_setup",
+    "args": [
+      "nr_reqs",
+      "ctx"
+    ]
+  },
+  {
+    "nr": 246,
+    "name": "io_destroy",
+    "args": [
+      "ctx"
+    ]
+  },
+  {
+    "nr": 247,
+    "name": "io_getevents",
+    "args": [
+      "ctx_id",
+      "min_nr",
+      "nr",
+      "events",
+      "timeout"
+    ]
+  },
+  {
+    "nr": 248,
+    "name": "io_submit",
+    "args": [
+      "aio_context_t",
+      "long",
+      "struct iocb * *"
+    ]
+  },
+  {
+    "nr": 249,
+    "name": "io_cancel",
+    "args": [
+      "ctx_id",
+      "iocb",
+      "result"
+    ]
+  },
+  {
+    "nr": 250,
+    "name": "fadvise64",
+    "args": [
+      "fd",
+      "offset",
+      "len",
+      "advice"
+    ]
+  },
+  {
+    "nr": 251,
+    "name": "not implemented",
+    "args": []
+  },
+  {
+    "nr": 252,
+    "name": "exit_group",
+    "args": [
+      "error_code"
+    ]
+  },
+  {
+    "nr": 253,
+    "name": "lookup_dcookie",
+    "args": [
+      "cookie64",
+      "buf",
+      "len"
+    ]
+  },
+  {
+    "nr": 254,
+    "name": "epoll_create",
+    "args": [
+      "size"
+    ]
+  },
+  {
+    "nr": 255,
+    "name": "epoll_ctl",
+    "args": [
+      "epfd",
+      "op",
+      "fd",
+      "event"
+    ]
+  },
+  {
+    "nr": 256,
+    "name": "epoll_wait",
+    "args": [
+      "epfd",
+      "events",
+      "maxevents",
+      "timeout"
+    ]
+  },
+  {
+    "nr": 257,
+    "name": "remap_file_pages",
+    "args": [
+      "start",
+      "size",
+      "prot",
+      "pgoff",
+      "flags"
+    ]
+  },
+  {
+    "nr": 258,
+    "name": "set_tid_address",
+    "args": [
+      "tidptr"
+    ]
+  },
+  {
+    "nr": 259,
+    "name": "timer_create",
+    "args": [
+      "which_clock",
+      "timer_event_spec",
+      "created_timer_id"
+    ]
+  },
+  {
+    "nr": 260,
+    "name": "timer_settime",
+    "args": [
+      "timer_id",
+      "flags",
+      "new_setting",
+      "old_setting"
+    ]
+  },
+  {
+    "nr": 261,
+    "name": "timer_gettime",
+    "args": [
+      "timer_id",
+      "setting"
+    ]
+  },
+  {
+    "nr": 262,
+    "name": "timer_getoverrun",
+    "args": [
+      "timer_id"
+    ]
+  },
+  {
+    "nr": 263,
+    "name": "timer_delete",
+    "args": [
+      "timer_id"
+    ]
+  },
+  {
+    "nr": 264,
+    "name": "clock_settime",
+    "args": [
+      "which_clock",
+      "tp"
+    ]
+  },
+  {
+    "nr": 265,
+    "name": "clock_gettime",
+    "args": [
+      "which_clock",
+      "tp"
+    ]
+  },
+  {
+    "nr": 266,
+    "name": "clock_getres",
+    "args": [
+      "which_clock",
+      "tp"
+    ]
+  },
+  {
+    "nr": 267,
+    "name": "clock_nanosleep",
+    "args": [
+      "which_clock",
+      "flags",
+      "rqtp",
+      "rmtp"
+    ]
+  },
+  {
+    "nr": 268,
+    "name": "statfs64",
+    "args": [
+      "path",
+      "sz",
+      "buf"
+    ]
+  },
+  {
+    "nr": 269,
+    "name": "fstatfs64",
+    "args": [
+      "fd",
+      "sz",
+      "buf"
+    ]
+  },
+  {
+    "nr": 270,
+    "name": "tgkill",
+    "args": [
+      "tgid",
+      "pid",
+      "sig"
+    ]
+  },
+  {
+    "nr": 271,
+    "name": "utimes",
+    "args": [
+      "filename",
+      "utimes"
+    ]
+  },
+  {
+    "nr": 272,
+    "name": "fadvise64_64",
+    "args": [
+      "fd",
+      "offset",
+      "len",
+      "advice"
+    ]
+  },
+  {
+    "nr": 273,
+    "name": "vserver",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  },
+  {
+    "nr": 274,
+    "name": "mbind",
+    "args": [
+      "start",
+      "len",
+      "mode",
+      "nmask",
+      "maxnode",
+      "flags"
+    ]
+  },
+  {
+    "nr": 275,
+    "name": "get_mempolicy",
+    "args": [
+      "policy",
+      "nmask",
+      "maxnode",
+      "addr",
+      "flags"
+    ]
+  },
+  {
+    "nr": 276,
+    "name": "set_mempolicy",
+    "args": [
+      "mode",
+      "nmask",
+      "maxnode"
+    ]
+  },
+  {
+    "nr": 277,
+    "name": "mq_open",
+    "args": [
+      "name",
+      "oflag",
+      "mode",
+      "attr"
+    ]
+  },
+  {
+    "nr": 278,
+    "name": "mq_unlink",
+    "args": [
+      "name"
+    ]
+  },
+  {
+    "nr": 279,
+    "name": "mq_timedsend",
+    "args": [
+      "mqdes",
+      "msg_ptr",
+      "msg_len",
+      "msg_prio",
+      "abs_timeout"
+    ]
+  },
+  {
+    "nr": 280,
+    "name": "mq_timedreceive",
+    "args": [
+      "mqdes",
+      "msg_ptr",
+      "msg_len",
+      "msg_prio",
+      "abs_timeout"
+    ]
+  },
+  {
+    "nr": 281,
+    "name": "mq_notify",
+    "args": [
+      "mqdes",
+      "notification"
+    ]
+  },
+  {
+    "nr": 282,
+    "name": "mq_getsetattr",
+    "args": [
+      "mqdes",
+      "mqstat",
+      "omqstat"
+    ]
+  },
+  {
+    "nr": 283,
+    "name": "kexec_load",
+    "args": [
+      "entry",
+      "nr_segments",
+      "segments",
+      "flags"
+    ]
+  },
+  {
+    "nr": 284,
+    "name": "waitid",
+    "args": [
+      "which",
+      "pid",
+      "infop",
+      "options",
+      "ru"
+    ]
+  },
+  {
+    "nr": 285,
+    "name": "not implemented",
+    "args": []
+  },
+  {
+    "nr": 286,
+    "name": "add_key",
+    "args": [
+      "_type",
+      "_description",
+      "_payload",
+      "plen",
+      "destringid"
+    ]
+  },
+  {
+    "nr": 287,
+    "name": "request_key",
+    "args": [
+      "_type",
+      "_description",
+      "_callout_info",
+      "destringid"
+    ]
+  },
+  {
+    "nr": 288,
+    "name": "keyctl",
+    "args": [
+      "cmd",
+      "arg2",
+      "arg3",
+      "arg4",
+      "arg5"
+    ]
+  },
+  {
+    "nr": 289,
+    "name": "ioprio_set",
+    "args": [
+      "which",
+      "who",
+      "ioprio"
+    ]
+  },
+  {
+    "nr": 290,
+    "name": "ioprio_get",
+    "args": [
+      "which",
+      "who"
+    ]
+  },
+  {
+    "nr": 291,
+    "name": "inotify_init",
+    "args": []
+  },
+  {
+    "nr": 292,
+    "name": "inotify_add_watch",
+    "args": [
+      "fd",
+      "path",
+      "mask"
+    ]
+  },
+  {
+    "nr": 293,
+    "name": "inotify_rm_watch",
+    "args": [
+      "fd",
+      "wd"
+    ]
+  },
+  {
+    "nr": 294,
+    "name": "migrate_pages",
+    "args": [
+      "pid",
+      "maxnode",
+      "from",
+      "to"
+    ]
+  },
+  {
+    "nr": 295,
+    "name": "openat",
+    "args": [
+      "dfd",
+      "filename",
+      "flags",
+      "mode"
+    ]
+  },
+  {
+    "nr": 296,
+    "name": "mkdirat",
+    "args": [
+      "dfd",
+      "pathname",
+      "mode"
+    ]
+  },
+  {
+    "nr": 297,
+    "name": "mknodat",
+    "args": [
+      "dfd",
+      "filename",
+      "mode",
+      "dev"
+    ]
+  },
+  {
+    "nr": 298,
+    "name": "fchownat",
+    "args": [
+      "dfd",
+      "filename",
+      "user",
+      "group",
+      "flag"
+    ]
+  },
+  {
+    "nr": 299,
+    "name": "futimesat",
+    "args": [
+      "dfd",
+      "filename",
+      "utimes"
+    ]
+  },
+  {
+    "nr": 300,
+    "name": "fstatat64",
+    "args": [
+      "dfd",
+      "filename",
+      "statbuf",
+      "flag"
+    ]
+  },
+  {
+    "nr": 301,
+    "name": "unlinkat",
+    "args": [
+      "dfd",
+      "pathname",
+      "flag"
+    ]
+  },
+  {
+    "nr": 302,
+    "name": "renameat",
+    "args": [
+      "olddfd",
+      "oldname",
+      "newdfd",
+      "newname"
+    ]
+  },
+  {
+    "nr": 303,
+    "name": "linkat",
+    "args": [
+      "olddfd",
+      "oldname",
+      "newdfd",
+      "newname",
+      "flags"
+    ]
+  },
+  {
+    "nr": 304,
+    "name": "symlinkat",
+    "args": [
+      "oldname",
+      "newdfd",
+      "newname"
+    ]
+  },
+  {
+    "nr": 305,
+    "name": "readlinkat",
+    "args": [
+      "dfd",
+      "path",
+      "buf",
+      "bufsiz"
+    ]
+  },
+  {
+    "nr": 306,
+    "name": "fchmodat",
+    "args": [
+      "dfd",
+      "filename",
+      "mode"
+    ]
+  },
+  {
+    "nr": 307,
+    "name": "faccessat",
+    "args": [
+      "dfd",
+      "filename",
+      "mode"
+    ]
+  },
+  {
+    "nr": 308,
+    "name": "pselect6",
+    "args": [
+      "int",
+      "fd_set *",
+      "fd_set *",
+      "fd_set *",
+      "struct __kernel_timespec *",
+      "void *"
+    ]
+  },
+  {
+    "nr": 309,
+    "name": "ppoll",
+    "args": [
+      "struct pollfd *",
+      "int",
+      "struct __kernel_timespec *",
+      "const sigset_t *",
+      "size_t"
+    ]
+  },
+  {
+    "nr": 310,
+    "name": "unshare",
+    "args": [
+      "unshare_flags"
+    ]
+  },
+  {
+    "nr": 311,
+    "name": "set_robust_list",
+    "args": [
+      "head",
+      "len"
+    ]
+  },
+  {
+    "nr": 312,
+    "name": "get_robust_list",
+    "args": [
+      "pid",
+      "head_ptr",
+      "len_ptr"
+    ]
+  },
+  {
+    "nr": 313,
+    "name": "splice",
+    "args": [
+      "fd_in",
+      "off_in",
+      "fd_out",
+      "off_out",
+      "len",
+      "flags"
+    ]
+  },
+  {
+    "nr": 314,
+    "name": "sync_file_range",
+    "args": [
+      "fd",
+      "offset",
+      "nbytes",
+      "flags"
+    ]
+  },
+  {
+    "nr": 315,
+    "name": "tee",
+    "args": [
+      "fdin",
+      "fdout",
+      "len",
+      "flags"
+    ]
+  },
+  {
+    "nr": 316,
+    "name": "vmsplice",
+    "args": [
+      "fd",
+      "iov",
+      "nr_segs",
+      "flags"
+    ]
+  },
+  {
+    "nr": 317,
+    "name": "move_pages",
+    "args": [
+      "pid",
+      "nr_pages",
+      "pages",
+      "nodes",
+      "status",
+      "flags"
+    ]
+  },
+  {
+    "nr": 318,
+    "name": "getcpu",
+    "args": [
+      "cpu",
+      "node",
+      "cache"
+    ]
+  },
+  {
+    "nr": 319,
+    "name": "epoll_pwait",
+    "args": [
+      "epfd",
+      "events",
+      "maxevents",
+      "timeout",
+      "sigmask",
+      "sigsetsize"
+    ]
+  },
+  {
+    "nr": 320,
+    "name": "utimensat",
+    "args": [
+      "dfd",
+      "filename",
+      "utimes",
+      "flags"
+    ]
+  },
+  {
+    "nr": 321,
+    "name": "signalfd",
+    "args": [
+      "ufd",
+      "user_mask",
+      "sizemask"
+    ]
+  },
+  {
+    "nr": 322,
+    "name": "timerfd_create",
+    "args": [
+      "clockid",
+      "flags"
+    ]
+  },
+  {
+    "nr": 323,
+    "name": "eventfd",
+    "args": [
+      "count"
+    ]
+  },
+  {
+    "nr": 324,
+    "name": "fallocate",
+    "args": [
+      "fd",
+      "mode",
+      "offset",
+      "len"
+    ]
+  },
+  {
+    "nr": 325,
+    "name": "timerfd_settime",
+    "args": [
+      "ufd",
+      "flags",
+      "utmr",
+      "otmr"
+    ]
+  },
+  {
+    "nr": 326,
+    "name": "timerfd_gettime",
+    "args": [
+      "ufd",
+      "otmr"
+    ]
+  },
+  {
+    "nr": 327,
+    "name": "signalfd4",
+    "args": [
+      "ufd",
+      "user_mask",
+      "sizemask",
+      "flags"
+    ]
+  },
+  {
+    "nr": 328,
+    "name": "eventfd2",
+    "args": [
+      "count",
+      "flags"
+    ]
+  },
+  {
+    "nr": 329,
+    "name": "epoll_create1",
+    "args": [
+      "flags"
+    ]
+  },
+  {
+    "nr": 330,
+    "name": "dup3",
+    "args": [
+      "oldfd",
+      "newfd",
+      "flags"
+    ]
+  },
+  {
+    "nr": 331,
+    "name": "pipe2",
+    "args": [
+      "fildes",
+      "flags"
+    ]
+  },
+  {
+    "nr": 332,
+    "name": "inotify_init1",
+    "args": [
+      "flags"
+    ]
+  },
+  {
+    "nr": 333,
+    "name": "preadv",
+    "args": [
+      "fd",
+      "vec",
+      "vlen",
+      "pos_l",
+      "pos_h"
+    ]
+  },
+  {
+    "nr": 334,
+    "name": "pwritev",
+    "args": [
+      "fd",
+      "vec",
+      "vlen",
+      "pos_l",
+      "pos_h"
+    ]
+  },
+  {
+    "nr": 335,
+    "name": "rt_tgsigqueueinfo",
+    "args": [
+      "tgid",
+      "pid",
+      "sig",
+      "uinfo"
+    ]
+  },
+  {
+    "nr": 336,
+    "name": "perf_event_open",
+    "args": [
+      "attr_uptr",
+      "pid",
+      "cpu",
+      "group_fd",
+      "flags"
+    ]
+  },
+  {
+    "nr": 337,
+    "name": "recvmmsg",
+    "args": [
+      "fd",
+      "msg",
+      "vlen",
+      "flags",
+      "timeout"
+    ]
+  },
+  {
+    "nr": 338,
+    "name": "fanotify_init",
+    "args": [
+      "flags",
+      "event_f_flags"
+    ]
+  },
+  {
+    "nr": 339,
+    "name": "fanotify_mark",
+    "args": [
+      "fanotify_fd",
+      "flags",
+      "mask",
+      "fd",
+      "pathname"
+    ]
+  },
+  {
+    "nr": 340,
+    "name": "prlimit64",
+    "args": [
+      "pid",
+      "resource",
+      "new_rlim",
+      "old_rlim"
+    ]
+  },
+  {
+    "nr": 341,
+    "name": "name_to_handle_at",
+    "args": [
+      "dfd",
+      "name",
+      "handle",
+      "mnt_id",
+      "flag"
+    ]
+  },
+  {
+    "nr": 342,
+    "name": "open_by_handle_at",
+    "args": [
+      "mountdirfd",
+      "handle",
+      "flags"
+    ]
+  },
+  {
+    "nr": 343,
+    "name": "clock_adjtime",
+    "args": [
+      "which_clock",
+      "tx"
+    ]
+  },
+  {
+    "nr": 344,
+    "name": "syncfs",
+    "args": [
+      "fd"
+    ]
+  },
+  {
+    "nr": 345,
+    "name": "sendmmsg",
+    "args": [
+      "fd",
+      "msg",
+      "vlen",
+      "flags"
+    ]
+  },
+  {
+    "nr": 346,
+    "name": "setns",
+    "args": [
+      "fd",
+      "nstype"
+    ]
+  },
+  {
+    "nr": 347,
+    "name": "process_vm_readv",
+    "args": [
+      "pid",
+      "lvec",
+      "liovcnt",
+      "rvec",
+      "riovcnt",
+      "flags"
+    ]
+  },
+  {
+    "nr": 348,
+    "name": "process_vm_writev",
+    "args": [
+      "pid",
+      "lvec",
+      "liovcnt",
+      "rvec",
+      "riovcnt",
+      "flags"
+    ]
+  },
+  {
+    "nr": 349,
+    "name": "kcmp",
+    "args": [
+      "pid1",
+      "pid2",
+      "type",
+      "idx1",
+      "idx2"
+    ]
+  },
+  {
+    "nr": 350,
+    "name": "finit_module",
+    "args": [
+      "fd",
+      "uargs",
+      "flags"
+    ]
+  },
+  {
+    "nr": 351,
+    "name": "sched_setattr",
+    "args": [
+      "pid",
+      "attr",
+      "flags"
+    ]
+  },
+  {
+    "nr": 352,
+    "name": "sched_getattr",
+    "args": [
+      "pid",
+      "attr",
+      "size",
+      "flags"
+    ]
+  },
+  {
+    "nr": 353,
+    "name": "renameat2",
+    "args": [
+      "olddfd",
+      "oldname",
+      "newdfd",
+      "newname",
+      "flags"
+    ]
+  },
+  {
+    "nr": 354,
+    "name": "seccomp",
+    "args": [
+      "op",
+      "flags",
+      "uargs"
+    ]
+  },
+  {
+    "nr": 355,
+    "name": "getrandom",
+    "args": [
+      "buf",
+      "count",
+      "flags"
+    ]
+  },
+  {
+    "nr": 356,
+    "name": "memfd_create",
+    "args": [
+      "uname_ptr",
+      "flags"
+    ]
+  },
+  {
+    "nr": 357,
+    "name": "bpf",
+    "args": [
+      "cmd",
+      "attr",
+      "size"
+    ]
+  },
+  {
+    "nr": 358,
+    "name": "execveat",
+    "args": [
+      "dfd",
+      "filename",
+      "argv",
+      "envp",
+      "flags"
+    ]
+  },
+  {
+    "nr": 359,
+    "name": "socket",
+    "args": [
+      "int",
+      "int",
+      "int"
+    ]
+  },
+  {
+    "nr": 360,
+    "name": "socketpair",
+    "args": [
+      "int",
+      "int",
+      "int",
+      "int *"
+    ]
+  },
+  {
+    "nr": 361,
+    "name": "bind",
+    "args": [
+      "int",
+      "struct sockaddr *",
+      "int"
+    ]
+  },
+  {
+    "nr": 362,
+    "name": "connect",
+    "args": [
+      "int",
+      "struct sockaddr *",
+      "int"
+    ]
+  },
+  {
+    "nr": 363,
+    "name": "listen",
+    "args": [
+      "int",
+      "int"
+    ]
+  },
+  {
+    "nr": 364,
+    "name": "accept4",
+    "args": [
+      "int",
+      "struct sockaddr *",
+      "int *",
+      "int"
+    ]
+  },
+  {
+    "nr": 365,
+    "name": "getsockopt",
+    "args": [
+      "fd",
+      "level",
+      "optname",
+      "optval",
+      "optlen"
+    ]
+  },
+  {
+    "nr": 366,
+    "name": "setsockopt",
+    "args": [
+      "fd",
+      "level",
+      "optname",
+      "optval",
+      "optlen"
+    ]
+  },
+  {
+    "nr": 367,
+    "name": "getsockname",
+    "args": [
+      "int",
+      "struct sockaddr *",
+      "int *"
+    ]
+  },
+  {
+    "nr": 368,
+    "name": "getpeername",
+    "args": [
+      "int",
+      "struct sockaddr *",
+      "int *"
+    ]
+  },
+  {
+    "nr": 369,
+    "name": "sendto",
+    "args": [
+      "int",
+      "void *",
+      "size_t",
+      "unsigned",
+      "struct sockaddr *",
+      "int"
+    ]
+  },
+  {
+    "nr": 370,
+    "name": "sendmsg",
+    "args": [
+      "fd",
+      "msg",
+      "flags"
+    ]
+  },
+  {
+    "nr": 371,
+    "name": "recvfrom",
+    "args": [
+      "int",
+      "void *",
+      "size_t",
+      "unsigned",
+      "struct sockaddr *",
+      "int *"
+    ]
+  },
+  {
+    "nr": 372,
+    "name": "recvmsg",
+    "args": [
+      "fd",
+      "msg",
+      "flags"
+    ]
+  },
+  {
+    "nr": 373,
+    "name": "shutdown",
+    "args": [
+      "int",
+      "int"
+    ]
+  },
+  {
+    "nr": 374,
+    "name": "userfaultfd",
+    "args": [
+      "flags"
+    ]
+  },
+  {
+    "nr": 375,
+    "name": "membarrier",
+    "args": [
+      "cmd",
+      "flags"
+    ]
+  },
+  {
+    "nr": 376,
+    "name": "mlock2",
+    "args": [
+      "start",
+      "len",
+      "flags"
+    ]
+  },
+  {
+    "nr": 377,
+    "name": "copy_file_range",
+    "args": [
+      "fd_in",
+      "off_in",
+      "fd_out",
+      "off_out",
+      "len",
+      "flags"
+    ]
+  },
+  {
+    "nr": 378,
+    "name": "preadv2",
+    "args": [
+      "fd",
+      "vec",
+      "vlen",
+      "pos_l",
+      "pos_h",
+      "flags"
+    ]
+  },
+  {
+    "nr": 379,
+    "name": "pwritev2",
+    "args": [
+      "fd",
+      "vec",
+      "vlen",
+      "pos_l",
+      "pos_h",
+      "flags"
+    ]
+  },
+  {
+    "nr": 380,
+    "name": "pkey_mprotect",
+    "args": [
+      "start",
+      "len",
+      "prot",
+      "pkey"
+    ]
+  },
+  {
+    "nr": 381,
+    "name": "pkey_alloc",
+    "args": [
+      "flags",
+      "init_val"
+    ]
+  },
+  {
+    "nr": 382,
+    "name": "pkey_free",
+    "args": [
+      "pkey"
+    ]
+  },
+  {
+    "nr": 383,
+    "name": "statx",
+    "args": [
+      "dfd",
+      "path",
+      "flags",
+      "mask",
+      "buffer"
+    ]
+  },
+  {
+    "nr": 384,
+    "name": "arch_prctl",
+    "args": [
+      "?",
+      "?",
+      "?",
+      "?",
+      "?",
+      "?"
+    ]
+  }
+]
