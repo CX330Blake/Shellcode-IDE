@@ -78,8 +78,8 @@ def _collect_used_gprs(lines: List[str]) -> Set[str]:
 def _choose_zero_reg(arch: str, used: Set[str]) -> str:
     a = (arch or '').lower()
     if 'x86_64' in a or a == 'x64' or 'x86' in a:
-        # prefer volatile regs less likely to be used in syscalls: r10, r11, r9, r8, rcx, rdx, rax
-        candidates64 = ['r10', 'r11', 'r9', 'r8', 'rcx', 'rdx', 'rax']
+        # prefer a single reusable volatile register; favor r11 when available
+        candidates64 = ['r11', 'r10', 'r9', 'r8', 'rcx', 'rdx', 'rax']
         for r in candidates64:
             if r not in used:
                 return r
@@ -112,19 +112,36 @@ def _x86_push_zero(lines: List[str], arch: str = "x86_64") -> List[str]:
         re.I,
     )
     used = _collect_used_gprs(lines)
-    for ln in lines:
-        m = push0.match(ln)
-        if m:
-            indent = m.group('indent') or ""
-            sep = m.group('sep') or " "
-            cmt = m.group('cmt') or ""
-            zreg = _choose_zero_reg(arch, used)
-            # Mark zreg as used for subsequent choices
-            used.add(_normalize_reg_to_64(zreg) or zreg)
-            out.append(f"{indent}xor{sep}{zreg}, {zreg}")
+    i = 0
+    n = len(lines)
+    while i < n:
+        m = push0.match(lines[i])
+        if not m:
+            out.append(lines[i])
+            i += 1
+            continue
+        # Start of a consecutive push-0 block
+        indent = m.group('indent') or ""
+        sep = m.group('sep') or " "
+        # Collect comments per line to preserve them
+        comments: List[str] = [m.group('cmt') or ""]
+        j = i + 1
+        while j < n:
+            mj = push0.match(lines[j])
+            if not mj:
+                break
+            comments.append(mj.group('cmt') or "")
+            j += 1
+        # Choose a reusable zero register once for the block
+        zreg = _choose_zero_reg(arch, used)
+        used.add(_normalize_reg_to_64(zreg) or zreg)
+        # Emit a single xor to zero the register, then push it repeatedly
+        out.append(f"{indent}xor{sep}{zreg}, {zreg}")
+        # Attach the original first-line comment to the first push to keep context
+        for k in range(i, j):
+            cmt = comments[k - i]
             out.append(f"{indent}push{sep}{zreg}{cmt}")
-        else:
-            out.append(ln)
+        i = j
     return out
 
 

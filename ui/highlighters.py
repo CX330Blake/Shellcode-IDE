@@ -389,6 +389,41 @@ class AsmObjdumpBadByteHighlighter(QSyntaxHighlighter):
         except Exception:
             return
 
+class UnifiedDiffHighlighter(QSyntaxHighlighter):
+    """Highlights lines in a unified diff: additions green, deletions red, headers dim.
+
+    Intended for use with a QPlainTextEdit containing the text produced by
+    difflib.unified_diff (or similar). Lines beginning with '+', excluding
+    '+++', are highlighted green; lines beginning with '-', excluding '---',
+    are highlighted red; and hunk/file headers are dimmed.
+    """
+
+    def __init__(self, document):
+        QSyntaxHighlighter.__init__(self, document)
+        self.fmt_add = QTextCharFormat()
+        self.fmt_add.setBackground(_qcolor_from_css('#e6ffed'))  # GitHub-like green
+        self.fmt_add.setForeground(_qcolor_from_css('#22863a'))
+
+        self.fmt_del = QTextCharFormat()
+        self.fmt_del.setBackground(_qcolor_from_css('#ffecec'))  # GitHub-like red
+        self.fmt_del.setForeground(_qcolor_from_css('#b31d28'))
+
+        self.fmt_hdr = QTextCharFormat()
+        self.fmt_hdr.setForeground(_qcolor_from_css('#6a737d'))  # muted gray
+
+    def highlightBlock(self, text: str) -> None:  # type: ignore
+        if not text:
+            return
+        try:
+            if text.startswith('+++') or text.startswith('---') or text.startswith('@@'):
+                self.setFormat(0, len(text), self.fmt_hdr)
+            elif text.startswith('+'):
+                self.setFormat(0, len(text), self.fmt_add)
+            elif text.startswith('-'):
+                self.setFormat(0, len(text), self.fmt_del)
+        except Exception:
+            return
+
 
 def _first_available_style(names):
     try:
