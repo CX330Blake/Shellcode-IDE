@@ -73,6 +73,7 @@ from .highlighters import (
     InlineBadByteHighlighter,
 )
 from .optimize_panel import OptimizePanel
+from .file_tab import FileDropTab
 from .syscalls_panel import SyscallsPanel
 from .shellstorm_panel import ShellstormPanel
 from ..backends.syscalls import canonical_arch
@@ -95,7 +96,16 @@ class ShellcodeIDEWindow(QMainWindow):
     def __init__(self, parent: Optional[QWidget] = None, bn_api=None):
         super().__init__(parent)
         self.setWindowTitle("Shellcode IDE")
-        self.resize(1100, 700)
+        # Slightly narrower default width for better fit on smaller screens
+        self.resize(900, 700)
+        # Compute centered geometry before the window is shown (best-effort).
+        # Some platforms/managers override initial geometry on show; we'll
+        # also center once after show via a one-shot timer (see showEvent).
+        self._did_center_after_show = False
+        try:
+            self._set_initial_center_geometry()
+        except Exception:
+            pass
 
         self.adapter = BNAdapter(bn_api=bn_api)
         # Load config and patterns
@@ -145,8 +155,49 @@ class ShellcodeIDEWindow(QMainWindow):
         self.asm_edit = QPlainTextEdit()
         self._apply_mono(self.hex_edit)
         self._apply_mono(self.asm_edit)
+        # Apply borderless style to both editors; padding will be synced to Syscalls
+        # Add comfortable inner padding to the Assembly editor so it matches
+        # the feel of the right-side output panes.
+        # Padding set later to match Syscalls panel once it's created
+        # Ensure the Assembly editor aligns flush with the tab pane edges (no extra inner frame),
+        # while keeping internal padding via document margins above.
+        try:
+            self.hex_edit.setContentsMargins(0, 0, 0, 0)
+        except Exception:
+            pass
+        try:
+            self.asm_edit.setContentsMargins(0, 0, 0, 0)
+        except Exception:
+            pass
+        try:
+            self.hex_edit.setFrameShape(QFrame.NoFrame)
+        except Exception:
+            pass
+        try:
+            self.asm_edit.setFrameShape(QFrame.NoFrame)
+        except Exception:
+            pass
         self.input_tabs.addTab(self.hex_edit, "Hex/Bytes")
         self.input_tabs.addTab(self.asm_edit, "Assembly")
+        # Drag & Drop File tab: lets user drop or open a file, routing
+        # assembly-like files to the Assembly editor and others to Hex.
+        def _filetab_insert_hex(b: bytes) -> None:
+            try:
+                self.hex_edit.setPlainText(bytes_to_hex(b, sep=" "))
+                self._update_formats(b)
+                self._update_stats(b)
+                self._last_bytes = b
+                # Do not switch mode automatically; keep current mode
+            except Exception:
+                pass
+        def _filetab_insert_asm_text(s: str) -> None:
+            try:
+                self.asm_edit.setPlainText(s)
+                # Do not switch mode automatically; keep current mode
+            except Exception:
+                pass
+        self.file_tab = FileDropTab(on_hex=_filetab_insert_hex, on_asm=_filetab_insert_asm_text, parent=self)
+        self.input_tabs.addTab(self.file_tab, "File")
         # Fill space so editor borders align top and bottom with right
         left_layout.addWidget(self.input_tabs, 1)
         splitter.addWidget(left)
@@ -165,6 +216,11 @@ class ShellcodeIDEWindow(QMainWindow):
         self.output_text = QPlainTextEdit()
         self._apply_mono(self.output_text)
         self.output_text.setReadOnly(True)
+        # Apply comfortable inner padding similar to Syscalls tab visuals
+        try:
+            self._apply_inner_padding(self.output_text, margin_px=10, viewport_pad=(6, 6, 6, 6))
+        except Exception:
+            pass
         self.disasm_highlighter = None
         self._refresh_disasm_highlighter()
         self.output_tabs.addTab(self.output_text, "Disassembly")
@@ -286,6 +342,10 @@ class ShellcodeIDEWindow(QMainWindow):
         def _copy_hll():
             try:
                 QApplication.clipboard().setText(self.hll_text.toPlainText())
+                try:
+                    self._flash_copied(hll_copy)
+                except Exception:
+                    pass
             except Exception:
                 pass
         try:
@@ -345,7 +405,7 @@ class ShellcodeIDEWindow(QMainWindow):
             parent=self,
         )
         self.output_tabs.addTab(self.syscalls_widget, "Syscalls")
-        # Now that Syscalls tab exists, sync Shellcode pane padding to match it
+        # Now that Syscalls tab exists, sync Shellcode pane and editors padding to match it
         try:
             self._sync_shellcode_padding_to_syscalls()
         except Exception:
@@ -424,6 +484,7 @@ class ShellcodeIDEWindow(QMainWindow):
         # Wire actions
         self.act_assemble.triggered.connect(self.on_assemble)
         self.act_disassemble.triggered.connect(self.on_disassemble)
+        # No Disassembly control bar; keep simple padded text view
         self.btn_patterns.clicked.connect(self.on_patterns)
         # No "New" toolbar action per request
 
@@ -496,6 +557,73 @@ class ShellcodeIDEWindow(QMainWindow):
         except Exception:
             pass
 
+        # Final centering happens once after the window is shown.
+
+    def showEvent(self, event):  # type: ignore[override]
+        try:
+            super().showEvent(event)
+        except Exception:
+            pass
+        # Center once after the window is visible so frame decorations
+        # are accounted for and any WM repositioning is overridden.
+        try:
+            if not getattr(self, '_did_center_after_show', False):
+                QTimer.singleShot(0, self._center_after_show)
+        except Exception:
+            pass
+
+    def _center_after_show(self) -> None:
+        if getattr(self, '_did_center_after_show', False):
+            return
+        ag = None
+        # If we have a top-level parent window, center relative to it
+        try:
+            p = self.parentWidget()
+            if p and p.isWindow():
+                pg = p.frameGeometry()
+                fg = self.frameGeometry()
+                fg.moveCenter(pg.center())
+                self.move(fg.topLeft())
+                self._did_center_after_show = True
+                return
+        except Exception:
+            pass
+        # Prefer the screen where the window resides (Qt6)
+        try:
+            from PySide6.QtGui import QGuiApplication  # type: ignore
+            scr = getattr(self, 'screen', lambda: None)() or QGuiApplication.primaryScreen()
+            ag = scr.availableGeometry() if scr else None
+        except Exception:
+            ag = None
+        if ag is None:
+            # Qt5 fallback: use the screen for this window if possible
+            try:
+                desk = QApplication.desktop()  # type: ignore[attr-defined]
+                idx = desk.screenNumber(self) if hasattr(desk, 'screenNumber') else -1
+                if isinstance(idx, int) and idx >= 0:
+                    ag = desk.availableGeometry(idx)
+                else:
+                    ag = desk.availableGeometry(self)
+            except Exception:
+                ag = None
+        if ag is None:
+            return
+        try:
+            fg = self.frameGeometry()
+            fg.moveCenter(ag.center())
+            self.move(fg.topLeft())
+            self._did_center_after_show = True
+        except Exception:
+            # As a last resort, setGeometry using current size
+            try:
+                w, h = self.width(), self.height()
+                x = ag.x() + max(0, (ag.width() - w) // 2)
+                y = ag.y() + max(0, (ag.height() - h) // 2)
+                self.setGeometry(x, y, w, h)
+                self._did_center_after_show = True
+            except Exception:
+                pass
+
     def _set_tab_visible(self, tabs: QTabWidget, widget: QWidget, visible: bool):
         try:
             idx = tabs.indexOf(widget)
@@ -554,6 +682,33 @@ class ShellcodeIDEWindow(QMainWindow):
             except Exception:
                 pass
         return frm
+
+    def _set_initial_center_geometry(self) -> None:
+        """Compute and set a centered geometry prior to show()."""
+        # Determine available geometry (primary screen)
+        ag = None
+        try:
+            from PySide6.QtGui import QGuiApplication  # type: ignore
+            scr = QGuiApplication.primaryScreen()
+            ag = scr.availableGeometry() if scr else None
+        except Exception:
+            ag = None
+        if ag is None:
+            try:
+                # Qt5 fallback
+                desk = QApplication.desktop()  # type: ignore[attr-defined]
+                ag = desk.availableGeometry(self)
+            except Exception:
+                ag = None
+        if ag is None:
+            return
+        w, h = self.width(), self.height()
+        x = ag.x() + max(0, (ag.width() - w) // 2)
+        y = ag.y() + max(0, (ag.height() - h) // 2)
+        try:
+            self.setGeometry(x, y, w, h)
+        except Exception:
+            pass
 
     def _set_mode(self, mode: str):
         # Input side: navigate to relevant tab, but keep both visible for easy switching
@@ -657,8 +812,10 @@ class ShellcodeIDEWindow(QMainWindow):
                 pass
 
     def on_input_tab_changed(self, idx: int):
-        # Switch toolbar mode based on active input tab
-        if self.input_tabs.widget(idx) is self.asm_edit:
+        # Switch toolbar mode only when Hex or Assembly tab is explicitly selected.
+        # Keep current mode when the File tab is selected so it's usable in both modes.
+        w = self.input_tabs.widget(idx)
+        if w is self.asm_edit:
             self._update_toolbar_for_mode("assemble")
             self._set_tab_visible(self.output_tabs, self.patterns_widget, True)
             try:
@@ -667,7 +824,7 @@ class ShellcodeIDEWindow(QMainWindow):
                 self.mode_combo.blockSignals(False)
             except Exception:
                 pass
-        else:
+        elif w is self.hex_edit:
             self._update_toolbar_for_mode("disassemble")
             self._set_tab_visible(self.output_tabs, self.patterns_widget, False)
             try:
@@ -676,6 +833,9 @@ class ShellcodeIDEWindow(QMainWindow):
                 self.mode_combo.blockSignals(False)
             except Exception:
                 pass
+        else:
+            # File tab or other auxiliary tabs: do not change mode.
+            return
 
     # Helpers
     def _apply_mono(self, widget: QPlainTextEdit):
@@ -708,6 +868,29 @@ class ShellcodeIDEWindow(QMainWindow):
         box.setReadOnly(True)
         box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         # Use default document margin to match Optimize panel appearance
+
+    def _apply_inner_padding(self, edit: QPlainTextEdit, margin_px: int = 8, viewport_pad: Optional[Tuple[int, int, int, int]] = None) -> None:
+        """Apply inner padding to a plain text editor using only document margin.
+
+        Optionally adds small viewport margins to match the visual rhythm of
+        the right-side panes. Keep values modest to avoid inner-border effects
+        some styles render around the viewport.
+        """
+        try:
+            if viewport_pad and len(viewport_pad) == 4:
+                l, t, r, b = [max(0, int(x)) for x in viewport_pad]
+                edit.setViewportMargins(l, t, r, b)
+            else:
+                # Default: no viewport padding
+                edit.setViewportMargins(0, 0, 0, 0)
+        except Exception:
+            pass
+        try:
+            # Increase document margin slightly so text doesn't hug the frame
+            doc = edit.document()
+            doc.setDocumentMargin(float(max(0, margin_px)))
+        except Exception:
+            pass
 
     def _apply_hll_highlighter(self) -> None:
         # Choose lexer based on current HLL language
@@ -792,6 +975,8 @@ class ShellcodeIDEWindow(QMainWindow):
         except Exception:
             pass
 
+    # Disassembly control helpers removed per user request; keep simple padded view
+
     def _sync_shellcode_padding_to_syscalls(self) -> None:
         """Match the Shellcode pane paddings (margins/spacing) to the Syscalls tab.
 
@@ -857,6 +1042,53 @@ class ShellcodeIDEWindow(QMainWindow):
         for hdr in (getattr(self, 'inline_header', None), getattr(self, 'hex_header', None), getattr(self, 'hll_header_row', None)):
             if hdr:
                 _apply_header(hdr)
+
+        # Also apply the same inner padding to editors and text areas, with an
+        # additional inner text margin to create two-layer padding.
+        try:
+            self._sync_editors_padding_to_syscalls(row_margins or outer_margins, spacing=row_spacing or outer_spacing)
+        except Exception:
+            pass
+
+    def _sync_editors_padding_to_syscalls(self, margins, spacing: Optional[int] = None) -> None:
+        """Apply two layers of padding to editors and outputs:
+
+        - Outer: viewport margins equal to Syscalls row margins (matches pane inset)
+        - Inner: document margin as a second, inner padding for the text body
+        """
+        try:
+            if margins is None:
+                # Fallback to a reasonable uniform padding
+                l = t = r = b = 8
+            else:
+                l, t, r, b = margins.left(), margins.top(), margins.right(), margins.bottom()
+            pads = (max(0, int(l)), max(0, int(t)), max(0, int(r)), max(0, int(b)))
+        except Exception:
+            pads = (8, 8, 8, 8)
+        # Inner text padding: use row spacing if available, else a small default
+        try:
+            doc_pad = int(spacing) if isinstance(spacing, int) and spacing is not None else 6
+            doc_pad = max(2, min(16, doc_pad))
+        except Exception:
+            doc_pad = 6
+        for edit in (
+            getattr(self, 'asm_edit', None),
+            getattr(self, 'hex_edit', None),
+            getattr(self, 'output_text', None),
+            getattr(self, 'inline_text', None),
+            getattr(self, 'hex_text', None),
+            getattr(self, 'hll_text', None),
+            getattr(self, 'opcode_text', None),
+            getattr(self, 'debug_asm_text', None),
+            getattr(self, 'validation_text', None),
+        ):
+            if edit is None:
+                continue
+            try:
+                # Apply both visible outer padding and an inner document margin
+                self._apply_inner_padding(edit, margin_px=doc_pad, viewport_pad=pads)
+            except Exception:
+                continue
 
     def _update_shellcode_bad_highlights(self, data: bytes) -> None:
         """Update bad-byte positions for Inline and Hex highlighters from current data."""
@@ -940,8 +1172,36 @@ class ShellcodeIDEWindow(QMainWindow):
                     # Fallback: copy empty string
                     content = ""
             QApplication.clipboard().setText(content)
+            try:
+                self._flash_copied(copy_btn)
+            except Exception:
+                pass
         copy_btn.clicked.connect(do_copy)
         return w
+
+    def _flash_copied(self, btn: QPushButton, timeout_ms: int = 1200) -> None:
+        """Temporarily show a check mark on a copy button to indicate success."""
+        try:
+            prev = btn.text()
+        except Exception:
+            prev = "Copy"
+        try:
+            btn.setText("✅")
+            btn.setEnabled(False)
+        except Exception:
+            pass
+        try:
+            QTimer.singleShot(max(200, int(timeout_ms)), lambda: self._restore_copy_btn(btn, prev))
+        except Exception:
+            # Immediate restore if timer fails
+            self._restore_copy_btn(btn, prev)
+
+    def _restore_copy_btn(self, btn: QPushButton, text: str = "Copy") -> None:
+        try:
+            btn.setText(text)
+            btn.setEnabled(True)
+        except Exception:
+            pass
 
     def _populate_arch_platform(self):
         archs = self.adapter.list_architectures()
@@ -1104,7 +1364,7 @@ class ShellcodeIDEWindow(QMainWindow):
         self._update_formats(data)
         self._update_stats(data)
         self._last_bytes = data
-        # Validation is only auto-run on assemble per requirements
+        # No control bar: nothing to reset
         # Show only hex editor + disassembly output
         self._set_mode("disassemble")
         # Decompile tab removed

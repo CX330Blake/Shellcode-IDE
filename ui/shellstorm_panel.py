@@ -5,7 +5,7 @@ import re as _re
 import html as _html
 
 try:
-    from PySide6.QtCore import Qt  # type: ignore
+    from PySide6.QtCore import Qt, QTimer  # type: ignore
     from PySide6.QtGui import QPalette  # type: ignore
     from PySide6.QtWidgets import (  # type: ignore
         QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QLabel,
@@ -14,7 +14,7 @@ try:
     _QT = "PySide6"
 except Exception:
     try:
-        from PySide2.QtCore import Qt  # type: ignore
+        from PySide2.QtCore import Qt, QTimer  # type: ignore
         from PySide2.QtGui import QPalette  # type: ignore
         from PySide2.QtWidgets import (  # type: ignore
             QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLineEdit, QLabel,
@@ -294,6 +294,21 @@ class ShellstormPanel(QWidget):
         try:
             content = self.preview.toPlainText()
             QApplication.clipboard().setText(content)
+        except Exception:
+            pass
+        # Visual feedback: show a temporary checkmark on the Copy button
+        try:
+            prev = self.btn_copy.text()
+            self.btn_copy.setText("Done")
+            self.btn_copy.setEnabled(False)
+            QTimer.singleShot(1200, lambda: self._restore_copy_btn(prev))
+        except Exception:
+            pass
+
+    def _restore_copy_btn(self, prev_text: str = "Copy") -> None:
+        try:
+            self.btn_copy.setText(prev_text)
+            self.btn_copy.setEnabled(True)
         except Exception:
             pass
 
