@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 # Qt compatibility: prefer PySide6 (Qt6), fallback to PySide2 (Qt5)
 _QT_LIB = None
 try:
-    from PySide6.QtCore import Qt  # type: ignore
+    from PySide6.QtCore import Qt, QTimer  # type: ignore
     from PySide6.QtGui import QFont, QAction, QPalette, QColor  # type: ignore  # QAction is in QtGui on Qt6
     from PySide6.QtWidgets import (  # type: ignore
         QApplication,
@@ -32,7 +32,7 @@ try:
     _QT_LIB = "PySide6"
 except Exception:
     try:
-        from PySide2.QtCore import Qt  # type: ignore
+        from PySide2.QtCore import Qt, QTimer  # type: ignore
         from PySide2.QtGui import QFont, QPalette, QColor  # type: ignore
         from PySide2.QtWidgets import (  # type: ignore
             QAction,  # QAction is in QtWidgets on Qt5
@@ -350,6 +350,15 @@ class ShellcodeIDEWindow(QMainWindow):
             self._sync_shellcode_padding_to_syscalls()
         except Exception:
             pass
+        # Preload Syscalls table once after UI is shown so users don't need to Refresh
+        try:
+            QTimer.singleShot(0, self._refresh_syscalls_tab)
+        except Exception:
+            try:
+                # Fallback: attempt immediately
+                self._refresh_syscalls_tab()
+            except Exception:
+                pass
 
         # Shell-Storm tab (search/import online shellcodes)
         def _insert_hex_bytes(b: bytes) -> None:
