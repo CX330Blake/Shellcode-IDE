@@ -26,6 +26,33 @@ def bytes_to_c_array(data: bytes, var_name: str = "shellcode", include_len: bool
         arr += f"\nsize_t {var_name}_len = sizeof({var_name});"
     return arr
 
+def bytes_to_c_stub(data: bytes, var_name: str = "shellcode", bytes_per_line: int = 16) -> str:
+    r"""Produce a minimal C test stub that executes the shellcode.
+
+    Pattern:
+    // gcc -z execstack shellcode.c -o shellcode
+    int main(){ unsigned char shellcode[] = "\x.."; (*(void(*)())shellcode)(); }
+    """
+    # Break the inline string into multiple quoted lines for readability
+    hex_list = [f"\\x{h}" for h in _byte_iter(data)]
+    lines = []
+    for i in range(0, len(hex_list), max(1, int(bytes_per_line))):
+        chunk = "".join(hex_list[i:i+bytes_per_line])
+        lines.append(f'      "{chunk}"')
+    body = ("\n".join(lines)) if lines else '      ""'
+    stub = (
+        "#include <stdio.h>\n"
+        "#include <string.h>\n\n"
+        "// gcc -z execstack shellcode.c -o shellcode\n\n"
+        "int main() {\n"
+        f"  unsigned char {var_name}[] =\n"
+        f"{body};\n"
+        f"  (*(void (*)()){var_name})();\n"
+        "  return 0;\n"
+        "}\n"
+    )
+    return stub
+
 
 def bytes_to_python_bytes(data: bytes, style: str = "literal") -> str:
     if style == "list":

@@ -79,6 +79,7 @@ from .shellstorm_panel import ShellstormPanel
 from ..backends.syscalls import canonical_arch
 from ..formatters.base import (
     bytes_to_c_array,
+    bytes_to_c_stub,
     bytes_to_hex,
     bytes_to_inline,
     bytes_to_python_bytes,
@@ -386,7 +387,8 @@ class ShellcodeIDEWindow(QMainWindow):
         self.hll_text = QPlainTextEdit(); self._setup_output_box(self.hll_text)
         self.hll_lang_combo = QComboBox()
         try:
-            self.hll_lang_combo.addItems(["C", "Python", "Zig", "Rust", "Go"])  # supported generators
+            # supported generators (add C Stub for runnable test harness)
+            self.hll_lang_combo.addItems(["C", "C Stub", "Python", "Zig", "Rust", "Go"])  # supported generators
         except Exception:
             pass
 
@@ -1039,6 +1041,7 @@ class ShellcodeIDEWindow(QMainWindow):
             lang = "c"
         lexer = {
             'c': 'c',
+            'c stub': 'c',
             'python': 'python',
             'zig': 'zig',
             'rust': 'rust',
@@ -1644,6 +1647,8 @@ class ShellcodeIDEWindow(QMainWindow):
             lang = "c"
         if lang == 'c':
             self.hll_text.setPlainText(bytes_to_c_array(data, var_name="shellcode", include_len=True))
+        elif lang == 'c stub':
+            self.hll_text.setPlainText(bytes_to_c_stub(data, var_name="shellcode"))
         elif lang == 'python':
             self.hll_text.setPlainText(bytes_to_python_bytes(data, style="literal"))
         elif lang == 'zig':
