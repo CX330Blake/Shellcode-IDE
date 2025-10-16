@@ -6,7 +6,7 @@ from typing import Optional, Tuple
 # Qt compatibility: prefer PySide6 (Qt6), fallback to PySide2 (Qt5)
 _QT_LIB = None
 try:
-    from PySide6.QtCore import Qt, QTimer  # type: ignore
+    from PySide6.QtCore import Qt, QTimer, QEvent  # type: ignore
     from PySide6.QtGui import QFont, QAction, QPalette, QColor  # type: ignore  # QAction is in QtGui on Qt6
     from PySide6.QtWidgets import (  # type: ignore
         QApplication,
@@ -32,7 +32,7 @@ try:
     _QT_LIB = "PySide6"
 except Exception:
     try:
-        from PySide2.QtCore import Qt, QTimer  # type: ignore
+        from PySide2.QtCore import Qt, QTimer, QEvent  # type: ignore
         from PySide2.QtGui import QFont, QPalette, QColor  # type: ignore
         from PySide2.QtWidgets import (  # type: ignore
             QAction,  # QAction is in QtWidgets on Qt5
@@ -196,11 +196,23 @@ class ShellcodeIDEWindow(QMainWindow):
                 # Do not switch mode automatically; keep current mode
             except Exception:
                 pass
-        self.file_tab = FileDropTab(on_hex=_filetab_insert_hex, on_asm=_filetab_insert_asm_text, parent=self)
+        # Provide a mode provider so the File tab can enforce Analysis-only-bytes
+        def _mode_provider() -> str:
+            try:
+                return (self.mode_combo.currentText() or "").strip()
+            except Exception:
+                return "Dev"
+        self.file_tab = FileDropTab(on_hex=_filetab_insert_hex, on_asm=_filetab_insert_asm_text, parent=self, mode_provider=_mode_provider)
         self.input_tabs.addTab(self.file_tab, "File")
         # Fill space so editor borders align top and bottom with right
         left_layout.addWidget(self.input_tabs, 1)
         splitter.addWidget(left)
+        # Install event filters to auto-trim trailing blank lines on focus loss
+        try:
+            self.hex_edit.installEventFilter(self)
+            self.asm_edit.installEventFilter(self)
+        except Exception:
+            pass
 
         # Right side - Output tabs and bad-chars controls
         right = QWidget()
@@ -500,6 +512,11 @@ class ShellcodeIDEWindow(QMainWindow):
             self.mode_combo.currentIndexChanged.connect(self.on_mode_changed)
         except Exception:
             pass
+        # Also nudge File tab to re-apply restrictions when mode changes
+        try:
+            self.mode_combo.currentIndexChanged.connect(lambda _i: getattr(self.file_tab, '_enforce_analysis_restrictions', lambda: None)())
+        except Exception:
+            pass
         # Default to Dev (assemble) mode regardless of initial tab
         try:
             self._update_toolbar_for_mode("assemble")
@@ -682,6 +699,49 @@ class ShellcodeIDEWindow(QMainWindow):
             except Exception:
                 pass
         return frm
+
+    def eventFilter(self, obj, event):  # type: ignore[override]
+        try:
+            if event and hasattr(event, 'type') and event.type() == QEvent.FocusOut:
+                if obj is self.asm_edit or obj is self.hex_edit:
+                    try:
+                        self._strip_editor_blank_lines(obj)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+        try:
+            return super().eventFilter(obj, event)
+        except Exception:
+            return False
+
+    def _strip_editor_blank_lines(self, edit: QPlainTextEdit) -> None:
+        """Remove trailing blank lines and whitespace from the end of the editor text."""
+        try:
+            text = edit.toPlainText()
+        except Exception:
+            return
+        try:
+            stripped = text.rstrip()
+        except Exception:
+            stripped = text
+        if stripped != text:
+            try:
+                edit.blockSignals(True)
+            except Exception:
+                pass
+            try:
+                edit.setPlainText(stripped)
+                # Move cursor to end
+                cur = edit.textCursor()  # type: ignore[attr-defined]
+                cur.movePosition(cur.End)
+                edit.setTextCursor(cur)
+            except Exception:
+                pass
+            try:
+                edit.blockSignals(False)
+            except Exception:
+                pass
 
     def _set_initial_center_geometry(self) -> None:
         """Compute and set a centered geometry prior to show()."""
@@ -1180,25 +1240,46 @@ class ShellcodeIDEWindow(QMainWindow):
         return w
 
     def _flash_copied(self, btn: QPushButton, timeout_ms: int = 1200) -> None:
-        """Temporarily show a check mark on a copy button to indicate success."""
+        """Temporarily show green "OK" on a copy button to indicate success."""
         try:
-            prev = btn.text()
+            prev_text = btn.text()
         except Exception:
-            prev = "Copy"
+            prev_text = "Copy"
         try:
-            btn.setText("✅")
+            prev_style = btn.styleSheet()
+        except Exception:
+            prev_style = ""
+        try:
+            # Use theme-derived green like Optimize tab
+            try:
+                good_col, _bad = self._theme_accent_colors()
+                ok_color = good_col.name() if hasattr(good_col, 'name') else None
+            except Exception:
+                ok_color = None
+            btn.setText("OK")
+            if ok_color:
+                btn.setStyleSheet(f"QPushButton {{ color: {ok_color}; }}")
+            else:
+                # Fallback to palette(Link) if no accent
+                try:
+                    pal = QApplication.instance().palette()
+                    ok_color = pal.color(QPalette.Highlight).name()
+                    btn.setStyleSheet(f"QPushButton {{ color: {ok_color}; }}")
+                except Exception:
+                    pass
             btn.setEnabled(False)
         except Exception:
             pass
         try:
-            QTimer.singleShot(max(200, int(timeout_ms)), lambda: self._restore_copy_btn(btn, prev))
+            QTimer.singleShot(max(200, int(timeout_ms)), lambda: self._restore_copy_btn(btn, prev_text, prev_style))
         except Exception:
             # Immediate restore if timer fails
-            self._restore_copy_btn(btn, prev)
+            self._restore_copy_btn(btn, prev_text, prev_style)
 
-    def _restore_copy_btn(self, btn: QPushButton, text: str = "Copy") -> None:
+    def _restore_copy_btn(self, btn: QPushButton, text: str = "Copy", style: str = "") -> None:
         try:
             btn.setText(text)
+            btn.setStyleSheet(style or "")
             btn.setEnabled(True)
         except Exception:
             pass
@@ -1340,6 +1421,11 @@ class ShellcodeIDEWindow(QMainWindow):
             pass
 
     def on_disassemble(self):
+        # Auto-strip trailing blank lines from Hex editor before parsing
+        try:
+            self._strip_editor_blank_lines(self.hex_edit)
+        except Exception:
+            pass
         data_str = self.hex_edit.toPlainText()
         try:
             data = parse_hex_input(data_str)
@@ -1370,6 +1456,11 @@ class ShellcodeIDEWindow(QMainWindow):
         # Decompile tab removed
 
     def on_assemble(self):
+        # Auto-strip trailing blank lines from Assembly editor before assembling
+        try:
+            self._strip_editor_blank_lines(self.asm_edit)
+        except Exception:
+            pass
         asm = self.asm_edit.toPlainText()
         if not asm.strip():
             QMessageBox.information(self, "Assemble", "Assembly input is empty.")
@@ -1643,6 +1734,12 @@ class ShellcodeIDEWindow(QMainWindow):
                 self.input_tabs.setCurrentWidget(self.asm_edit)
             else:
                 self.input_tabs.setCurrentWidget(self.hex_edit)
+        except Exception:
+            pass
+        # Clear File tab data when switching modes (do not carry over files)
+        try:
+            if hasattr(self, 'file_tab') and self.file_tab:
+                self.file_tab.clear_for_mode()
         except Exception:
             pass
 

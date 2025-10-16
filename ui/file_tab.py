@@ -47,10 +47,13 @@ class FileDropTab(QWidget):
         on_hex: Callable[[bytes], None],
         on_asm: Callable[[str], None],
         parent: Optional[QWidget] = None,
+        mode_provider: Optional[Callable[[], str]] = None,
     ) -> None:
         super().__init__(parent)
         self._on_hex = on_hex
         self._on_asm = on_asm
+        # Optional callback to query IDE mode (e.g., 'dev' or 'analysis')
+        self._get_mode = mode_provider
 
         self.setAcceptDrops(True)
         try:
@@ -86,6 +89,11 @@ class FileDropTab(QWidget):
         self.btn_clear.clicked.connect(self._clear_preview)
         mode_row.addWidget(self.btn_clear)
         root.addLayout(mode_row)
+        # Respect Analysis mode: only Bytes allowed (disable Asm and prefer Auto/Bytes)
+        try:
+            self._enforce_analysis_restrictions()
+        except Exception:
+            pass
         # Re-import automatically when the user changes the mode, if a file is loaded
         try:
             def _auto_reimport(checked: bool) -> None:
@@ -238,7 +246,11 @@ class FileDropTab(QWidget):
 
     # Open file dialog
     def _open_dialog(self) -> None:
-        filters = "All Files (*);;Assembly (*.s *.S *.asm *.txt);;Binary (*.bin *.raw)"
+        # In analysis mode, restrict dialog to bytes files
+        if self._in_analysis_mode():
+            filters = "Binary (*.bin *.raw);;All Files (*)"
+        else:
+            filters = "All Files (*);;Assembly (*.s *.S *.asm *.txt);;Binary (*.bin *.raw)"
         path, _ = QFileDialog.getOpenFileName(self, "Open File", "", filters)
         if path:
             self._load_path(path, trigger_import=True)
@@ -286,6 +298,7 @@ class FileDropTab(QWidget):
 
         # Persist last decoded text for auto-import decision
         self._last_text = text
+        # If analysis mode forbids assembly, keep detected type but UI will block on import
         self._update_info(path, len(self._last_bytes or b""), detected_kind)
         self._update_preview(text, self._last_bytes)
 
@@ -354,10 +367,75 @@ class FileDropTab(QWidget):
                         data = parsed
                 final_kind = "bytes"
 
+        # Enforce Analysis mode restriction: only bytes may be imported
+        if self._in_analysis_mode() and final_kind == "assembly":
+            self._show_error("Analysis mode accepts bytes only. Switch to Dev for assembly.")
+            # Also ensure UI selection reflects restriction
+            try:
+                self._enforce_analysis_restrictions()
+            except Exception:
+                pass
+            return
+
         if final_kind == "assembly":
             self._on_asm(text or "")
         else:
             self._on_hex(data)
+
+    def _in_analysis_mode(self) -> bool:
+        try:
+            mode = (self._get_mode() if callable(self._get_mode) else "").strip().lower()
+        except Exception:
+            mode = ""
+        return mode.startswith("analysis") or mode.startswith("disassemble")
+
+    def _enforce_analysis_restrictions(self) -> None:
+        if not self._in_analysis_mode():
+            # Re-enable in other modes
+            try:
+                self.rb_asm.setEnabled(True)
+                self.rb_auto.setEnabled(True)
+                self.rb_bytes.setEnabled(True)
+            except Exception:
+                pass
+            return
+        # Disable Asm radio and prefer Bytes in Analysis
+        try:
+            self.rb_asm.setEnabled(False)
+            # If Asm was selected, switch to Bytes
+            if getattr(self.rb_asm, 'isChecked', lambda: False)():
+                self.rb_bytes.setChecked(True)
+        except Exception:
+            pass
+
+    def reload_for_mode(self) -> None:
+        """Re-apply mode restrictions and re-import the currently loaded file, if any."""
+        try:
+            self._enforce_analysis_restrictions()
+        except Exception:
+            pass
+        # Re-import current content to route to the correct destination for this mode
+        try:
+            if self._last_bytes is not None or self._last_text is not None or self._last_path is not None:
+                self._import_current()
+        except Exception:
+            pass
+
+    def clear_for_mode(self) -> None:
+        """Clear any loaded file preview/data when the host mode changes."""
+        try:
+            self._enforce_analysis_restrictions()
+        except Exception:
+            pass
+        try:
+            self._clear_preview()
+        except Exception:
+            pass
+        # Reset drop zone message/style if it showed an Analysis-only warning
+        try:
+            self._reset_drop_message()
+        except Exception:
+            pass
 
     def _clear_preview(self) -> None:
         self._last_path = None
@@ -414,6 +492,15 @@ class FileDropTab(QWidget):
         try:
             self.drop_text.setText(msg)
             self.drop_text.setStyleSheet("border: none; background: transparent; color: #c00;")
+        except Exception:
+            pass
+
+    def _reset_drop_message(self) -> None:
+        """Restore the default non-error drop text and styling."""
+        try:
+            self.drop_text.setText("Drop / Click")
+            self.drop_text.setStyleSheet("border: none; background: transparent;")
+            self._apply_dropzone_style(hover=False)
         except Exception:
             pass
 

@@ -76,8 +76,8 @@ class OptimizePanel(QWidget):
     def _set_line_highlights(self, edit: QPlainTextEdit, add_lines: set, del_lines: set) -> None:
         """Apply GitHub-like line background highlights to a QPlainTextEdit.
 
-        - add_lines: indices to highlight green
-        - del_lines: indices to highlight red
+        - add_lines: indices to highlight green (entire line width)
+        - del_lines: indices to highlight red (entire line width)
         """
         sels = []
         try:
@@ -85,8 +85,11 @@ class OptimizePanel(QWidget):
             doc = edit.document()
             # Formats using theme colors
             good, bad = _good_bad_colors()
-            f_add = QTextCharFormat(); f_add.setBackground(_tint(good)); f_add.setForeground(good); f_add.setProperty(QTextFormat.FullWidthSelection, True)
-            f_del = QTextCharFormat(); f_del.setBackground(_tint(bad));  f_del.setForeground(bad);  f_del.setProperty(QTextFormat.FullWidthSelection, True)
+            # Use stronger tint and mark full-width selection for entire line coloring
+            add_bg = _tint(good, alpha=72)
+            del_bg = _tint(bad,  alpha=72)
+            f_add = QTextCharFormat(); f_add.setBackground(add_bg); f_add.setProperty(QTextFormat.FullWidthSelection, True)
+            f_del = QTextCharFormat(); f_del.setBackground(del_bg);  f_del.setProperty(QTextFormat.FullWidthSelection, True)
             max_lines = doc.blockCount()
             for i in range(max_lines):
                 block = doc.findBlockByNumber(i)
@@ -96,10 +99,10 @@ class OptimizePanel(QWidget):
                 if fmt is None:
                     continue
                 es = QTextEdit.ExtraSelection()
-                # Select the entire block so the full-width selection background applies
+                # GitHub-style: mark the whole visual line width, not just text
+                # Use FullWidthSelection with a zero-length selection at StartOfBlock
                 cur = QTextCursor(block)
-                cur.setPosition(block.position())
-                cur.movePosition(QTextCursor.EndOfBlock, QTextCursor.KeepAnchor)
+                cur.setPosition(block.position())  # no anchor/selection
                 es.cursor = cur
                 es.format = fmt
                 sels.append(es)
@@ -199,6 +202,15 @@ class OptimizePanel(QWidget):
                     del_before.update(range(i1, i2))
                 if tag in ('replace', 'insert'):
                     add_after.update(range(j1, j2))
+            # Ignore blank lines in diffs (do not mark empty-only rows)
+            try:
+                del_before = {i for i in del_before if (a[i].strip() != '')}
+            except Exception:
+                del_before = del_before
+            try:
+                add_after = {j for j in add_after if (b[j].strip() != '')}
+            except Exception:
+                add_after = add_after
             self._set_line_highlights(self.before_edit, add_lines=set(), del_lines=del_before)
             self._set_line_highlights(self.after_edit, add_lines=add_after, del_lines=set())
         except Exception:

@@ -112,6 +112,67 @@ def _x86_push_zero(lines: List[str], arch: str = "x86_64") -> List[str]:
         re.I,
     )
     used = _collect_used_gprs(lines)
+
+    def _reg_aliases(base64: str) -> List[str]:
+        b = (base64 or '').lower()
+        fam: List[str] = []
+        if b in ('rax','rbx','rcx','rdx'):
+            fam = [b, 'e'+b[1:], b[2:]+'x', b[2:]+'l']
+        elif b in ('rsi','rdi','rbp','rsp'):
+            # 8-bit low forms for SI/DI/BP/SP on x86_64 are sil/dil/bpl/spl
+            low8 = {'rsi':'sil','rdi':'dil','rbp':'bpl','rsp':'spl'}[b]
+            fam = [b, 'e'+b[1:], b[1:], low8]
+        elif b.startswith('r') and b[1:].isdigit():
+            # r8..r15 family
+            fam = [b, b+'d', b+'w', b+'b']
+        elif b in ('eax','ebx','ecx','edx'):
+            fam = [b, b[1:]+'x', b[1:]+'l']
+        elif b in ('esi','edi','ebp','esp'):
+            fam = [b, b[1:], {'esi':'sil','edi':'dil','ebp':'bpl','esp':'spl'}[b]]
+        else:
+            # fallback: just itself
+            fam = [b]
+        return fam
+
+    def _find_reusable_zero_reg(start_idx: int) -> Optional[str]:
+        """Scan backward for a prior 'xor R,R' and ensure R is not overwritten before start_idx.
+
+        Returns a base 64-bit register name suitable for reuse (e.g., 'r11'), or None.
+        """
+        zero_re = re.compile(r"^\s*xor\s+([A-Za-z0-9]+)\s*,\s*([A-Za-z0-9]+)\s*(?:;.*)?$", re.I)
+        write_mnems = (
+            'mov','lea','xor','or','and','add','sub','adc','sbb','imul','idiv','mul','div','not','neg',
+            'inc','dec','shl','shr','sal','sar','rol','ror','bswap','xchg','pop','set','cmov'
+        )
+        for k in range(start_idx - 1, -1, -1):
+            ln = lines[k]
+            m = zero_re.match(ln)
+            if not m:
+                continue
+            r1, r2 = m.group(1), m.group(2)
+            b1 = _normalize_reg_to_64(r1) or r1.lower()
+            b2 = _normalize_reg_to_64(r2) or r2.lower()
+            if b1 != b2:
+                continue
+            # ensure no overwrite of this register family between k+1 and start_idx-1
+            aliases = _reg_aliases(b1)
+            alias_re = re.compile(r"^\s*([A-Za-z.]+)\s+([^,;]+)", re.I)
+            overwritten = False
+            for t in range(k + 1, start_idx):
+                mt = alias_re.match(lines[t])
+                if not mt:
+                    continue
+                mnem = mt.group(1).lower()
+                op1 = (mt.group(2) or '').strip()
+                # Clean addressing like 'qword ptr [rax]' or memory; only consider bare registers
+                op1_token = op1.split()[0]
+                op1_token = op1_token.strip(',').lower()
+                if mnem in write_mnems and op1_token in aliases:
+                    overwritten = True
+                    break
+            if not overwritten:
+                return b1
+        return None
     i = 0
     n = len(lines)
     while i < n:
@@ -132,11 +193,13 @@ def _x86_push_zero(lines: List[str], arch: str = "x86_64") -> List[str]:
                 break
             comments.append(mj.group('cmt') or "")
             j += 1
-        # Choose a reusable zero register once for the block
-        zreg = _choose_zero_reg(arch, used)
-        used.add(_normalize_reg_to_64(zreg) or zreg)
-        # Emit a single xor to zero the register, then push it repeatedly
-        out.append(f"{indent}xor{sep}{zreg}, {zreg}")
+        # Choose a reusable zero register once for the block; prefer an existing zeroed reg
+        zreg = _find_reusable_zero_reg(i)
+        if zreg is None:
+            zreg = _choose_zero_reg(arch, used)
+            used.add(_normalize_reg_to_64(zreg) or zreg)
+            # Emit a single xor to zero the register, then push it repeatedly
+            out.append(f"{indent}xor{sep}{zreg}, {zreg}")
         # Attach the original first-line comment to the first push to keep context
         for k in range(i, j):
             cmt = comments[k - i]

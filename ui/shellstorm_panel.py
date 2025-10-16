@@ -296,18 +296,40 @@ class ShellstormPanel(QWidget):
             QApplication.clipboard().setText(content)
         except Exception:
             pass
-        # Visual feedback: show a temporary checkmark on the Copy button
+        # Visual feedback: show temporary green OK on the Copy button using theme palette
         try:
-            prev = self.btn_copy.text()
-            self.btn_copy.setText("Done")
+            prev_text = self.btn_copy.text()
+            try:
+                prev_style = self.btn_copy.styleSheet()
+            except Exception:
+                prev_style = ""
+            self.btn_copy.setText("OK")
+            # Prefer theme-aware green
+            ok_color = None
+            try:
+                from .highlighters import _good_bad_colors  # type: ignore
+                g, _r = _good_bad_colors()
+                if g and g.isValid():
+                    ok_color = g.name()
+            except Exception:
+                ok_color = None
+            if not ok_color:
+                try:
+                    pal = self.palette()
+                    ok_color = pal.color(QPalette.Highlight).name()
+                except Exception:
+                    ok_color = None
+            if ok_color:
+                self.btn_copy.setStyleSheet(f"QPushButton {{ color: {ok_color}; }}")
             self.btn_copy.setEnabled(False)
-            QTimer.singleShot(1200, lambda: self._restore_copy_btn(prev))
+            QTimer.singleShot(1200, lambda: self._restore_copy_btn(prev_text, prev_style))
         except Exception:
             pass
 
-    def _restore_copy_btn(self, prev_text: str = "Copy") -> None:
+    def _restore_copy_btn(self, prev_text: str = "Copy", prev_style: str = "") -> None:
         try:
             self.btn_copy.setText(prev_text)
+            self.btn_copy.setStyleSheet(prev_style or "")
             self.btn_copy.setEnabled(True)
         except Exception:
             pass
