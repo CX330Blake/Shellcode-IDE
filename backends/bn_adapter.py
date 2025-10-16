@@ -94,6 +94,15 @@ class BNAdapter:
             if data:
                 return data
         except Exception as e:
+            # Try a couple BN-friendly rewrites before giving up
+            try:
+                rewritten = self._bn_rewrite_movabs_imm64(sanitized)
+                if rewritten != sanitized:
+                    data = arch.assemble(rewritten, addr)
+                    if data:
+                        return data
+            except Exception:
+                pass
             # Try to augment BN error with original line mapping when possible
             bn_err = self._augment_bn_error(e, sanitized, line_map)
         else:
@@ -116,8 +125,35 @@ class BNAdapter:
             msg += " and Keystone fallback"
         except Exception:
             msg += " (Keystone not installed)"
-        msg += ".\nTips: remove directives/labels, or install keystone-engine."
+        msg += ".\nTips: use 'movabs' for 64-bit immediates, remove directives/labels, or install keystone-engine."
         raise RuntimeError(msg)
+
+    def _bn_rewrite_movabs_imm64(self, asm: str) -> str:
+        """Rewrite 'mov reg, imm64' into 'movabs reg, imm64' for BN compatibility.
+
+        BN sometimes prefers 'movabs' for 64-bit immediates into 64-bit regs.
+        This preserves semantics and helps common shellcode snippets assemble.
+        """
+        out_lines: list[str] = []
+        pat = re.compile(r"^\s*mov\s+(r(?:[0-9]+|[abcd]x|[sb]p|[sd]i)),\s*(0x[0-9a-fA-F]+|\d+)\s*$", re.IGNORECASE)
+        for line in asm.splitlines():
+            m = pat.match(line)
+            if not m:
+                out_lines.append(line)
+                continue
+            reg, imm = m.group(1), m.group(2)
+            is_hex = imm.lower().startswith('0x')
+            try:
+                val = int(imm, 16 if is_hex else 10)
+            except Exception:
+                val = None
+            # Only rewrite when value requires 64-bit immediate
+            if val is None or val <= 0xFFFFFFFF:
+                out_lines.append(line)
+                continue
+            new_line = f"movabs {reg}, {imm}"
+            out_lines.append(new_line)
+        return "\n".join(out_lines)
 
     def disassemble(self, data: bytes, arch_name: str, addr: int = 0) -> List[str]:
         if self.bn is None:

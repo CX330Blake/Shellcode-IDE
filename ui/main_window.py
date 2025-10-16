@@ -119,6 +119,17 @@ class ShellcodeIDEWindow(QMainWindow):
         tb = QToolBar("Main")
         tb.setMovable(False)
         self.addToolBar(tb)
+        # Keep a handle for later padding sync with editors
+        self._toolbar = tb
+        # Left spacer to align toolbar content (Mode, Arch) with the Assembly editor text
+        # Width is updated later once we compute editor padding from the Syscalls tab.
+        try:
+            self._toolbar_left_spacer = QWidget()
+            # Default to 0; will be set in _sync_shellcode_padding_to_syscalls
+            self._toolbar_left_spacer.setFixedWidth(0)
+            tb.addWidget(self._toolbar_left_spacer)
+        except Exception:
+            self._toolbar_left_spacer = None
 
         # Mode switcher (Dev/Analysis)
         self.mode_combo = QComboBox()
@@ -187,13 +198,23 @@ class ShellcodeIDEWindow(QMainWindow):
                 self._update_formats(b)
                 self._update_stats(b)
                 self._last_bytes = b
-                # Do not switch mode automatically; keep current mode
+                # Take user to the Hex editor for immediate editing
+                try:
+                    self.input_tabs.setCurrentWidget(self.hex_edit)
+                    self.hex_edit.setFocus()
+                except Exception:
+                    pass
             except Exception:
                 pass
         def _filetab_insert_asm_text(s: str) -> None:
             try:
                 self.asm_edit.setPlainText(s)
-                # Do not switch mode automatically; keep current mode
+                # Take user to the Assembly editor for immediate editing
+                try:
+                    self.input_tabs.setCurrentWidget(self.asm_edit)
+                    self.asm_edit.setFocus()
+                except Exception:
+                    pass
             except Exception:
                 pass
         # Provide a mode provider so the File tab can enforce Analysis-only-bytes
@@ -233,9 +254,62 @@ class ShellcodeIDEWindow(QMainWindow):
             self._apply_inner_padding(self.output_text, margin_px=10, viewport_pad=(6, 6, 6, 6))
         except Exception:
             pass
+        # Header row with "Send to Dev mode" action
+        self.disasm_header = QWidget()
+        _dh_lay = QHBoxLayout(self.disasm_header)
+        try:
+            _def_h = QHBoxLayout()
+            _m = _def_h.contentsMargins()
+            _dh_lay.setContentsMargins(_m.left(), _m.top(), _m.right(), _m.bottom())
+            _dh_lay.setSpacing(_def_h.spacing())
+        except Exception:
+            pass
+        _dh_lay.addWidget(QLabel("Disassembly"))
+        _dh_lay.addStretch(1)
+        # Copy button for disassembly view
+        self.btn_disasm_copy = QPushButton("Copy")
+        try:
+            self.btn_disasm_copy.setFixedWidth(60)
+        except Exception:
+            pass
+        try:
+            def _copy_disasm():
+                try:
+                    QApplication.clipboard().setText(self.output_text.toPlainText())
+                except Exception:
+                    return
+                try:
+                    self._flash_copied(self.btn_disasm_copy)
+                except Exception:
+                    pass
+            self.btn_disasm_copy.clicked.connect(_copy_disasm)
+        except Exception:
+            pass
+        _dh_lay.addWidget(self.btn_disasm_copy)
+        # Send-to-dev action
+        self.btn_send_to_dev = QPushButton("Send to Dev mode")
+        try:
+            self.btn_send_to_dev.setToolTip("Copy disassembly to Assembly editor and switch to Dev mode")
+        except Exception:
+            pass
+        _dh_lay.addWidget(self.btn_send_to_dev)
+        try:
+            self.btn_send_to_dev.clicked.connect(self._send_disassembly_to_dev)
+        except Exception:
+            pass
+        # Wrap header + view in a container for the Disassembly tab
+        self.disasm_container = QWidget()
+        _dv = QVBoxLayout(self.disasm_container)
+        try:
+            _m = _dv.contentsMargins()
+            _dv.setContentsMargins(_m.left(), _m.top(), _m.right(), _m.bottom())
+        except Exception:
+            pass
+        _dv.addWidget(self.disasm_header)
+        _dv.addWidget(self.output_text)
         self.disasm_highlighter = None
         self._refresh_disasm_highlighter()
-        self.output_tabs.addTab(self.output_text, "Disassembly")
+        self.output_tabs.addTab(self.disasm_container, "Disassembly")
 
         # Debug tab for assemble mode: Opcode + Assembly (objdump-like)
         self.debug_widget = QWidget()
@@ -420,6 +494,11 @@ class ShellcodeIDEWindow(QMainWindow):
         # Now that Syscalls tab exists, sync Shellcode pane and editors padding to match it
         try:
             self._sync_shellcode_padding_to_syscalls()
+        except Exception:
+            pass
+        # Also align the toolbar's left padding with the editors once paddings are known
+        try:
+            self._sync_toolbar_padding_to_editors()
         except Exception:
             pass
         # Preload Syscalls table once after UI is shown so users don't need to Refresh
@@ -790,7 +869,7 @@ class ShellcodeIDEWindow(QMainWindow):
                 except Exception:
                     pass
             # Output: show Output (formats), Debug, and Optimize
-            self._set_tab_visible(self.output_tabs, self.output_text, False)
+            self._set_tab_visible(self.output_tabs, self.disasm_container, False)
             self._set_tab_visible(self.output_tabs, self.validation_container, False)
             self._set_tab_visible(self.output_tabs, self.debug_widget, True)
             self._set_tab_visible(self.output_tabs, self.optimize_widget, True)
@@ -826,7 +905,7 @@ class ShellcodeIDEWindow(QMainWindow):
             # Output: only textual disassembly (hide Shellcode tab in Analysis mode)
             self._set_tab_visible(self.output_tabs, self.formats_widget, False)
             self._set_tab_visible(self.output_tabs, self.validation_container, False)
-            self._set_tab_visible(self.output_tabs, self.output_text, True)
+            self._set_tab_visible(self.output_tabs, self.disasm_container, True)
             self._set_tab_visible(self.output_tabs, self.debug_widget, False)
             self._set_tab_visible(self.output_tabs, self.optimize_widget, False)
             # Keep Shell-Storm and Syscalls visible for reference
@@ -838,7 +917,7 @@ class ShellcodeIDEWindow(QMainWindow):
             self._set_tab_visible(self.output_tabs, self.syscalls_widget, bool(sys_ok))
             self._set_tab_visible(self.output_tabs, self.shellstorm_widget, True)
             try:
-                self.output_tabs.setCurrentWidget(self.output_text)
+                self.output_tabs.setCurrentWidget(self.disasm_container)
             except Exception:
                 pass
             # Hide patterns tab in analysis mode
@@ -848,7 +927,7 @@ class ShellcodeIDEWindow(QMainWindow):
             # Show everything
             self._set_tab_visible(self.output_tabs, self.formats_widget, True)
             self._set_tab_visible(self.output_tabs, self.validation_container, True)
-            self._set_tab_visible(self.output_tabs, self.output_text, True)
+            self._set_tab_visible(self.output_tabs, self.disasm_container, True)
             self._set_tab_visible(self.output_tabs, self.debug_widget, True)
             self._set_tab_visible(self.output_tabs, self.optimize_widget, True)
             self._set_tab_visible(self.output_tabs, self.shellstorm_widget, True)
@@ -1109,6 +1188,11 @@ class ShellcodeIDEWindow(QMainWindow):
             self._sync_editors_padding_to_syscalls(row_margins or outer_margins, spacing=row_spacing or outer_spacing)
         except Exception:
             pass
+        # After syncing editors, make toolbar left indent match editor text start
+        try:
+            self._sync_toolbar_padding_to_editors(row_margins or outer_margins)
+        except Exception:
+            pass
 
     def _sync_editors_padding_to_syscalls(self, margins, spacing: Optional[int] = None) -> None:
         """Apply two layers of padding to editors and outputs:
@@ -1149,6 +1233,28 @@ class ShellcodeIDEWindow(QMainWindow):
                 self._apply_inner_padding(edit, margin_px=doc_pad, viewport_pad=pads)
             except Exception:
                 continue
+
+    def _sync_toolbar_padding_to_editors(self, margins=None) -> None:
+        """Align the toolbar's content (Mode, Arch) with the Assembly editor text.
+
+        Achieved by adjusting a left spacer in the QToolBar to match the
+        editors' left viewport margin derived from the Syscalls panel row margins.
+        """
+        try:
+            spacer = getattr(self, '_toolbar_left_spacer', None)
+            if spacer is None:
+                return
+            # Determine left padding from provided margins or infer a sensible default
+            if margins is not None:
+                try:
+                    left_px = int(max(0, margins.left()))
+                except Exception:
+                    left_px = 8
+            else:
+                left_px = 8
+            spacer.setFixedWidth(left_px)
+        except Exception:
+            pass
 
     def _update_shellcode_bad_highlights(self, data: bytes) -> None:
         """Update bad-byte positions for Inline and Hex highlighters from current data."""
@@ -1256,7 +1362,11 @@ class ShellcodeIDEWindow(QMainWindow):
                 ok_color = good_col.name() if hasattr(good_col, 'name') else None
             except Exception:
                 ok_color = None
-            btn.setText("OK")
+            # Change label to OK and set text color to green
+            try:
+                btn.setText("OK")
+            except Exception:
+                pass
             if ok_color:
                 btn.setStyleSheet(f"QPushButton {{ color: {ok_color}; }}")
             else:
@@ -1267,7 +1377,7 @@ class ShellcodeIDEWindow(QMainWindow):
                     btn.setStyleSheet(f"QPushButton {{ color: {ok_color}; }}")
                 except Exception:
                     pass
-            btn.setEnabled(False)
+            # Do not disable to avoid theme changing button background
         except Exception:
             pass
         try:
@@ -1281,6 +1391,28 @@ class ShellcodeIDEWindow(QMainWindow):
             btn.setText(text)
             btn.setStyleSheet(style or "")
             btn.setEnabled(True)
+        except Exception:
+            pass
+
+    def _send_disassembly_to_dev(self) -> None:
+        """Send current Disassembly view text to the Assembly editor and switch to Dev mode."""
+        try:
+            asm_text = (self.output_text.toPlainText() or "").strip()
+        except Exception:
+            asm_text = ""
+        try:
+            if asm_text:
+                self.asm_edit.setPlainText(asm_text)
+        except Exception:
+            pass
+        # Switch mode combo to Dev (index 0) and focus Assembly editor
+        try:
+            self.mode_combo.setCurrentIndex(0)
+        except Exception:
+            pass
+        try:
+            self.input_tabs.setCurrentWidget(self.asm_edit)
+            self.asm_edit.setFocus()
         except Exception:
             pass
 
@@ -1767,7 +1899,7 @@ class ShellcodeIDEWindow(QMainWindow):
             # If currently selected, nudge to a safe tab
             try:
                 if self.output_tabs.currentWidget() is self.syscalls_widget:
-                    self.output_tabs.setCurrentWidget(self.output_text)
+                    self.output_tabs.setCurrentWidget(self.disasm_container)
             except Exception:
                 pass
 

@@ -303,7 +303,11 @@ class ShellstormPanel(QWidget):
                 prev_style = self.btn_copy.styleSheet()
             except Exception:
                 prev_style = ""
-            self.btn_copy.setText("OK")
+            # Change label to OK and set text color to green
+            try:
+                self.btn_copy.setText("OK")
+            except Exception:
+                pass
             # Prefer theme-aware green
             ok_color = None
             try:
@@ -321,7 +325,7 @@ class ShellstormPanel(QWidget):
                     ok_color = None
             if ok_color:
                 self.btn_copy.setStyleSheet(f"QPushButton {{ color: {ok_color}; }}")
-            self.btn_copy.setEnabled(False)
+            # Keep enabled to avoid background color changes in some themes
             QTimer.singleShot(1200, lambda: self._restore_copy_btn(prev_text, prev_style))
         except Exception:
             pass

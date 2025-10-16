@@ -246,11 +246,11 @@ class FileDropTab(QWidget):
 
     # Open file dialog
     def _open_dialog(self) -> None:
-        # In analysis mode, restrict dialog to bytes files
+        # Restrict file types by mode: Analysis=bytes only, Dev=assembly only
         if self._in_analysis_mode():
             filters = "Binary (*.bin *.raw);;All Files (*)"
         else:
-            filters = "All Files (*);;Assembly (*.s *.S *.asm *.txt);;Binary (*.bin *.raw)"
+            filters = "Assembly (*.s *.S *.asm *.txt);;All Files (*)"
         path, _ = QFileDialog.getOpenFileName(self, "Open File", "", filters)
         if path:
             self._load_path(path, trigger_import=True)
@@ -367,10 +367,19 @@ class FileDropTab(QWidget):
                         data = parsed
                 final_kind = "bytes"
 
-        # Enforce Analysis mode restriction: only bytes may be imported
+        # Enforce mode restrictions:
+        # - Analysis mode: only bytes allowed
+        # - Dev mode: only assembly allowed
         if self._in_analysis_mode() and final_kind == "assembly":
             self._show_error("Analysis mode accepts bytes only. Switch to Dev for assembly.")
             # Also ensure UI selection reflects restriction
+            try:
+                self._enforce_analysis_restrictions()
+            except Exception:
+                pass
+            return
+        if not self._in_analysis_mode() and final_kind != "assembly":
+            self._show_error("Dev mode accepts assembly only. Switch to Analysis for bytes.")
             try:
                 self._enforce_analysis_restrictions()
             except Exception:
@@ -390,21 +399,31 @@ class FileDropTab(QWidget):
         return mode.startswith("analysis") or mode.startswith("disassemble")
 
     def _enforce_analysis_restrictions(self) -> None:
-        if not self._in_analysis_mode():
-            # Re-enable in other modes
+        """Enforce allowed import kinds based on IDE mode.
+
+        - Analysis mode: bytes only (disable Asm)
+        - Dev mode: assembly only (disable Bytes)
+        """
+        if self._in_analysis_mode():
+            # Disable Asm radio and prefer Bytes in Analysis
             try:
-                self.rb_asm.setEnabled(True)
+                self.rb_asm.setEnabled(False)
                 self.rb_auto.setEnabled(True)
                 self.rb_bytes.setEnabled(True)
+                # If Asm was selected, switch to Bytes
+                if getattr(self.rb_asm, 'isChecked', lambda: False)():
+                    self.rb_bytes.setChecked(True)
             except Exception:
                 pass
             return
-        # Disable Asm radio and prefer Bytes in Analysis
+        # Dev mode: assembly only
         try:
-            self.rb_asm.setEnabled(False)
-            # If Asm was selected, switch to Bytes
-            if getattr(self.rb_asm, 'isChecked', lambda: False)():
-                self.rb_bytes.setChecked(True)
+            self.rb_bytes.setEnabled(False)
+            self.rb_auto.setEnabled(True)
+            self.rb_asm.setEnabled(True)
+            # If Bytes was selected, switch to Asm (or Auto)
+            if getattr(self.rb_bytes, 'isChecked', lambda: False)():
+                self.rb_asm.setChecked(True)
         except Exception:
             pass
 
