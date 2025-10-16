@@ -22,5 +22,6 @@
   "bad_highlight_enabled": true,
   "syscall_favorites": {
     "x64": []
-  }
+  },
+  "shellstorm_insecure": true
 }

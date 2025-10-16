@@ -86,7 +86,7 @@ class BNAdapter:
         arch = self._get_arch(arch_name)
 
         # Sanitize assembly: strip comments, labels, and directives that BN may not accept
-        sanitized = self._sanitize_asm(asm_text)
+        sanitized, line_map = self._sanitize_asm(asm_text)
 
         # Try BN assembler first
         try:
@@ -94,7 +94,8 @@ class BNAdapter:
             if data:
                 return data
         except Exception as e:
-            bn_err = e
+            # Try to augment BN error with original line mapping when possible
+            bn_err = self._augment_bn_error(e, sanitized, line_map)
         else:
             bn_err = None
 
@@ -199,9 +200,13 @@ class BNAdapter:
             raise RuntimeError(f"Architecture not found: {name}")
 
     # --- helpers ---
-    def _sanitize_asm(self, text: str) -> str:
+    def _sanitize_asm(self, text: str) -> tuple[str, List[int]]:
+        """Return (sanitized_text, line_map) where line_map[i] = original line number (1-based)
+        for sanitized line i.
+        """
         lines: List[str] = []
-        for raw in text.splitlines():
+        mapping: List[int] = []
+        for idx, raw in enumerate(text.splitlines(), start=1):
             s = raw
             # strip comments (simple)
             s = re.split(r"[;#]", s, maxsplit=1)[0]
@@ -211,11 +216,67 @@ class BNAdapter:
             # strip label-only lines: label:
             if re.match(r"^[A-Za-z_.$][\w.$@]*:\s*$", s):
                 continue
+            # strip leading label when followed by instruction on same line: label: instr ...
+            m = re.match(r"^([A-Za-z_.$][\w.$@]*):\s*(.+)$", s)
+            if m:
+                s = m.group(2).strip()
+                if not s:
+                    continue
             # drop assembler directives starting with '.'
             if re.match(r"^\s*\.", s):
                 continue
             lines.append(s)
-        return "\n".join(lines)
+            mapping.append(idx)
+        return "\n".join(lines), mapping
+
+    def _augment_bn_error(self, err: Exception, sanitized: str, line_map: List[int]) -> Exception:
+        """Try to remap BN error line numbers to the user's original input and add context."""
+        try:
+            msg = str(err)
+        except Exception:
+            return err
+        # Look for patterns like 'input:1:' or 'line 1'
+        m = re.search(r"input:(\d+)", msg)
+        line_no = None
+        if m:
+            try:
+                line_no = int(m.group(1))
+            except Exception:
+                line_no = None
+        else:
+            m = re.search(r"line\s+(\d+)", msg, flags=re.IGNORECASE)
+            if m:
+                try:
+                    line_no = int(m.group(1))
+                except Exception:
+                    line_no = None
+        if line_no is None:
+            return err
+        # Map to original line number if available
+        orig_line = None
+        if 1 <= line_no <= len(line_map):
+            orig_line = line_map[line_no - 1]
+        # Extract the sanitized line content for quick hint
+        try:
+            san_lines = sanitized.splitlines()
+            bad_src = san_lines[line_no - 1] if 1 <= line_no <= len(san_lines) else ""
+        except Exception:
+            bad_src = ""
+        hint = []
+        if bad_src:
+            hint.append(f"at '{bad_src}'")
+            # Heuristic: detect possible AT&T syntax which BN doesn't accept
+            if any(ch in bad_src for ch in ('%', '$')):
+                hint.append("looks like AT&T syntax; use Intel or install Keystone (ATT)")
+            # Heuristic: invalid operand count often due to extra commas
+            if bad_src.count(',') >= 2:
+                hint.append("too many operands (extra comma?)")
+        loc = f"original line {orig_line}" if orig_line is not None else f"sanitized line {line_no}"
+        augmented = f"{msg} [{loc}{('; ' + '; '.join(hint)) if hint else ''}]"
+        try:
+            return RuntimeError(augmented)
+        except Exception:
+            return err
 
     def _assemble_with_keystone(self, asm: str, arch_name: str, addr: int) -> bytes:
         try:
@@ -240,6 +301,17 @@ class BNAdapter:
 
         try:
             engine = ks.Ks(ks_arch, ks_mode)
+            # Detect AT&T syntax for x86 when '%' or '$' appear
+            try:
+                if ks_arch == ks.KS_ARCH_X86 and any(ch in asm for ch in ('%', '$')):
+                    engine.syntax = ks.KS_OPT_SYNTAX_ATT  # type: ignore[attr-defined]
+            except Exception:
+                # Older bindings may require option API
+                try:
+                    if ks_arch == ks.KS_ARCH_X86 and any(ch in asm for ch in ('%', '$')):
+                        engine.option(ks.KS_OPT_SYNTAX, ks.KS_OPT_SYNTAX_ATT)
+                except Exception:
+                    pass
             encoding, _ = engine.asm(asm, addr)
             return bytes(encoding)
         except Exception as e:

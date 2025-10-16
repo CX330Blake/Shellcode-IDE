@@ -37,5 +37,17 @@ def bytes_to_python_bytes(data: bytes, style: str = "literal") -> str:
 
 def bytes_to_zig_array(data: bytes, var_name: str = "shellcode") -> str:
     elems = ", ".join(f"0x{h}" for h in _byte_iter(data))
-    return f"const {var_name}: []u8 = .{{{elems}}};"
+    return f"const {var_name}: [_]u8 = .{{{elems}}};"
 
+
+def bytes_to_rust_array(data: bytes, var_name: str = "SHELLCODE") -> str:
+    """Rust constant byte array: const SHELLCODE: [u8; N] = [0x.., ...];"""
+    elems = ", ".join(f"0x{h}" for h in _byte_iter(data))
+    n = len(data)
+    return f"const {var_name}: [u8; {n}] = [{elems}];"
+
+
+def bytes_to_go_slice(data: bytes, var_name: str = "shellcode") -> str:
+    """Go byte slice: var shellcode = []byte{0x.., ...}"""
+    elems = ", ".join(f"0x{h}" for h in _byte_iter(data))
+    return f"var {var_name} = []byte{{{elems}}}"

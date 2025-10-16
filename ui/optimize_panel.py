@@ -81,14 +81,12 @@ class OptimizePanel(QWidget):
         """
         sels = []
         try:
+            from .highlighters import _good_bad_colors, _tint  # reuse theme-aware colors
             doc = edit.document()
-            # Formats
-            f_add = QTextCharFormat(); f_add.setBackground(QColor('#dafbe1'))  # addition bg (light/dark friendly)
-            f_add.setForeground(QColor('#1a7f37'))  # addition fg
-            f_add.setProperty(QTextFormat.FullWidthSelection, True)
-            f_del = QTextCharFormat(); f_del.setBackground(QColor('#ffebe9'))  # deletion bg
-            f_del.setForeground(QColor('#d1242f'))  # deletion fg
-            f_del.setProperty(QTextFormat.FullWidthSelection, True)
+            # Formats using theme colors
+            good, bad = _good_bad_colors()
+            f_add = QTextCharFormat(); f_add.setBackground(_tint(good)); f_add.setForeground(good); f_add.setProperty(QTextFormat.FullWidthSelection, True)
+            f_del = QTextCharFormat(); f_del.setBackground(_tint(bad));  f_del.setForeground(bad);  f_del.setProperty(QTextFormat.FullWidthSelection, True)
             max_lines = doc.blockCount()
             for i in range(max_lines):
                 block = doc.findBlockByNumber(i)
@@ -120,14 +118,16 @@ class OptimizePanel(QWidget):
         """
         sels = []
         try:
+            from .highlighters import _good_bad_colors, _tint
             doc = edit.document()
             fmt = QTextCharFormat()
+            good, bad = _good_bad_colors()
             if kind == 'add':
-                fmt.setBackground(QColor('#dafbe1'))
-                fmt.setForeground(QColor('#1a7f37'))
+                fmt.setBackground(_tint(good))
+                fmt.setForeground(good)
             else:
-                fmt.setBackground(QColor('#ffebe9'))
-                fmt.setForeground(QColor('#d1242f'))
+                fmt.setBackground(_tint(bad))
+                fmt.setForeground(bad)
             for line_no, spans in spans_by_line.items():
                 block = doc.findBlockByNumber(int(line_no))
                 if not block.isValid():

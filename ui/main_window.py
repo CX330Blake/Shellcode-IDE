@@ -70,9 +70,11 @@ from .highlighters import (
     create_code_highlighter,
     HexBadByteHighlighter,
     AsmObjdumpBadByteHighlighter,
+    InlineBadByteHighlighter,
 )
 from .optimize_panel import OptimizePanel
 from .syscalls_panel import SyscallsPanel
+from .shellstorm_panel import ShellstormPanel
 from ..backends.syscalls import canonical_arch
 from ..formatters.base import (
     bytes_to_c_array,
@@ -80,6 +82,8 @@ from ..formatters.base import (
     bytes_to_inline,
     bytes_to_python_bytes,
     bytes_to_zig_array,
+    bytes_to_rust_array,
+    bytes_to_go_slice,
 )
 from ..utils.hexbytes import parse_hex_input, count_nulls
 
@@ -206,26 +210,91 @@ class ShellcodeIDEWindow(QMainWindow):
         )
         self.output_tabs.addTab(self.optimize_widget, "Optimize")
 
-        # Formats view
+        # Formats view (Shellcode output pane)
         fmt_widget = QWidget()
         fmt_layout = QGridLayout(fmt_widget)
+        # Keep a handle for later syncing with Syscalls padding style
+        self.formats_layout = fmt_layout
+        # Match default padding style (like Syscalls tab)
+        try:
+            _def_v = QVBoxLayout()
+            _m = _def_v.contentsMargins()
+            fmt_layout.setContentsMargins(_m.left(), _m.top(), _m.right(), _m.bottom())
+        except Exception:
+            pass
+        try:
+            _def_v = QVBoxLayout()
+            _sp = _def_v.spacing()
+            fmt_layout.setHorizontalSpacing(_sp)
+            fmt_layout.setVerticalSpacing(_sp)
+        except Exception:
+            pass
+        # Ensure header rows stay compact and do not expand vertically
+        try:
+            fmt_layout.setRowStretch(0, 0)
+            fmt_layout.setRowStretch(2, 0)
+            fmt_layout.setRowStretch(1, 1)  # let text areas take extra space
+            fmt_layout.setRowStretch(3, 2)
+        except Exception:
+            pass
 
         self.inline_text = QPlainTextEdit(); self._setup_output_box(self.inline_text)
         self.hex_text = QPlainTextEdit(); self._setup_output_box(self.hex_text)
-        self.c_text = QPlainTextEdit(); self._setup_output_box(self.c_text)
-        self.py_text = QPlainTextEdit(); self._setup_output_box(self.py_text)
-        self.zig_text = QPlainTextEdit(); self._setup_output_box(self.zig_text)
+        # Copy As Code pane (single area with language selector)
+        self.hll_text = QPlainTextEdit(); self._setup_output_box(self.hll_text)
+        self.hll_lang_combo = QComboBox()
+        try:
+            self.hll_lang_combo.addItems(["C", "Python", "Zig", "Rust", "Go"])  # supported generators
+        except Exception:
+            pass
 
-        fmt_layout.addWidget(self._labeled_box("Inline"), 0, 0)
+        self.inline_header = self._labeled_box("Inline")
+        fmt_layout.addWidget(self.inline_header, 0, 0)
         fmt_layout.addWidget(self.inline_text, 1, 0)
-        fmt_layout.addWidget(self._labeled_box("Hex"), 0, 1)
+        self.hex_header = self._labeled_box("Hex")
+        fmt_layout.addWidget(self.hex_header, 0, 1)
         fmt_layout.addWidget(self.hex_text, 1, 1)
-        fmt_layout.addWidget(self._labeled_box("C"), 2, 0)
-        fmt_layout.addWidget(self.c_text, 3, 0)
-        fmt_layout.addWidget(self._labeled_box("Python"), 2, 1)
-        fmt_layout.addWidget(self.py_text, 3, 1)
-        fmt_layout.addWidget(self._labeled_box("Zig"), 4, 0, 1, 2)
-        fmt_layout.addWidget(self.zig_text, 5, 0, 1, 2)
+        # Copy As Code row with selector and copy button (compact)
+        hll_row = QWidget(); hll_row_layout = QHBoxLayout(hll_row)
+        try:
+            # Use default margins/spacing to mirror Syscalls panel
+            _def_h = QHBoxLayout()
+            _m = _def_h.contentsMargins()
+            hll_row_layout.setContentsMargins(_m.left(), _m.top(), _m.right(), _m.bottom())
+            hll_row_layout.setSpacing(_def_h.spacing())
+        except Exception:
+            pass
+        lbl_hll = QLabel("Copy As Code")
+        try:
+            lbl_hll.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+            lbl_hll.setMargin(0)
+        except Exception:
+            pass
+        hll_row_layout.addWidget(lbl_hll)
+        # Push language selector + copy to the right
+        hll_row_layout.addStretch(1)
+        hll_row_layout.addWidget(QLabel("Language:"))
+        # Use default widget height for combo to match Optimize tab
+        hll_row_layout.addWidget(self.hll_lang_combo)
+        hll_copy = QPushButton("Copy");
+        try:
+            hll_copy.setFixedWidth(60)
+        except Exception:
+            pass
+        hll_row_layout.addWidget(hll_copy)
+        # Default height mirrors standard toolbar-like rows
+        def _copy_hll():
+            try:
+                QApplication.clipboard().setText(self.hll_text.toPlainText())
+            except Exception:
+                pass
+        try:
+            hll_copy.clicked.connect(_copy_hll)
+        except Exception:
+            pass
+        fmt_layout.addWidget(hll_row, 2, 0, 1, 2)
+        self.hll_header_row = hll_row
+        fmt_layout.addWidget(self.hll_text, 3, 0, 1, 2)
         # Keep formats packed to top
         # No extra stretch; the tab widget fills the height
 
@@ -234,28 +303,24 @@ class ShellcodeIDEWindow(QMainWindow):
         # Tabs fill space so borders align
         right_layout.addWidget(self.output_tabs, 1)
 
-        # Syntax highlighting for Output tab code blocks (with fallback)
+        # Syntax highlighting for Output tab code blocks using Qt-only highlighters
         try:
-            sty = self._preferred_style()
-            self.inline_code_hl = create_code_highlighter(self.inline_text.document(), lexer_name="python", style_name=sty)
+            self.inline_code_hl = create_code_highlighter(self.inline_text.document(), lexer_name="python")
         except Exception:
             self.inline_code_hl = None
+        # High-level language code highlighter; depends on selected language
+        self.hll_code_hl = None
         try:
-            sty = self._preferred_style()
-            self.c_code_hl = create_code_highlighter(self.c_text.document(), lexer_name="c", style_name=sty)
+            self._apply_hll_highlighter()
         except Exception:
-            self.c_code_hl = None
+            self.hll_code_hl = None
         try:
-            sty = self._preferred_style()
-            self.py_code_hl = create_code_highlighter(self.py_text.document(), lexer_name="python", style_name=sty)
+            self.hll_lang_combo.currentTextChanged.connect(lambda _t: self._on_hll_lang_changed())
         except Exception:
-            self.py_code_hl = None
-        try:
-            sty = self._preferred_style()
-            # Pygments supports 'zig' in newer versions; fallback kicks in otherwise
-            self.zig_code_hl = create_code_highlighter(self.zig_text.document(), lexer_name="zig", style_name=sty)
-        except Exception:
-            self.zig_code_hl = None
+            pass
+        # Bad-byte highlighters for Inline and Hex panes (attached in analysis mode)
+        self.hex_bad_hl = None
+        self.inline_bad_hl = None
 
         # Bad-chars editor as its own tab (Dev mode)
         self.patterns_widget = PatternsPanel(self.bpm, self)
@@ -280,6 +345,36 @@ class ShellcodeIDEWindow(QMainWindow):
             parent=self,
         )
         self.output_tabs.addTab(self.syscalls_widget, "Syscalls")
+        # Now that Syscalls tab exists, sync Shellcode pane padding to match it
+        try:
+            self._sync_shellcode_padding_to_syscalls()
+        except Exception:
+            pass
+
+        # Shell-Storm tab (search/import online shellcodes)
+        def _insert_hex_bytes(b: bytes) -> None:
+            try:
+                # Insert into Hex editor and switch to Analysis mode to show disassembly
+                self.hex_edit.setPlainText(bytes_to_hex(b, sep=" "))
+                self._update_formats(b)
+                self._update_stats(b)
+                self._last_bytes = b
+                self._set_mode("disassemble")
+            except Exception:
+                pass
+        def _insert_asm_text(s: str) -> None:
+            try:
+                self.asm_edit.setPlainText(s)
+                self._set_mode("assemble")
+            except Exception:
+                pass
+        self.shellstorm_widget = ShellstormPanel(
+            get_arch_cb=lambda: (self.arch_combo.currentText() or "x86_64"),
+            insert_hex_cb=_insert_hex_bytes,
+            insert_asm_cb=_insert_asm_text,
+            parent=self,
+        )
+        self.output_tabs.addTab(self.shellstorm_widget, "Shell-Storm")
 
         # Validation tab (container with a button bar and text)
         val_container = QWidget()
@@ -365,10 +460,10 @@ class ShellcodeIDEWindow(QMainWindow):
             self.arch_combo.currentTextChanged.connect(lambda _t: self._refresh_syscalls_tab())
         except Exception:
             pass
-        # Add Pygments to Assembly editor as well
+        # Add Qt-only highlighter to Assembly editor
         try:
             self.asm_highlighter = create_disassembly_highlighter(
-                self.asm_edit.document(), arch_name=self.arch_combo.currentText() or "x86_64", style_name=self._preferred_style()
+                self.asm_edit.document(), arch_name=self.arch_combo.currentText() or "x86_64"
             )
         except Exception:
             self.asm_highlighter = None
@@ -504,24 +599,27 @@ class ShellcodeIDEWindow(QMainWindow):
                     self.input_tabs.setTabEnabled(idx_asm, False)
                 except Exception:
                     pass
-            # Output: only textual disassembly
+            # Output: only textual disassembly (hide Shellcode tab in Analysis mode)
             self._set_tab_visible(self.output_tabs, self.formats_widget, False)
             self._set_tab_visible(self.output_tabs, self.validation_container, False)
             self._set_tab_visible(self.output_tabs, self.output_text, True)
             self._set_tab_visible(self.output_tabs, self.debug_widget, False)
             self._set_tab_visible(self.output_tabs, self.optimize_widget, False)
+            # Keep Shell-Storm and Syscalls visible for reference
             # Syscalls visible in Analysis mode only when supported
             try:
                 sys_ok = canonical_arch(self.arch_combo.currentText() or "") is not None
             except Exception:
                 sys_ok = False
             self._set_tab_visible(self.output_tabs, self.syscalls_widget, bool(sys_ok))
+            self._set_tab_visible(self.output_tabs, self.shellstorm_widget, True)
             try:
                 self.output_tabs.setCurrentWidget(self.output_text)
             except Exception:
                 pass
             # Hide patterns tab in analysis mode
             self._set_tab_visible(self.output_tabs, self.patterns_widget, False)
+            # No Shellcode tab or its highlighters in Analysis mode
         else:
             # Show everything
             self._set_tab_visible(self.output_tabs, self.formats_widget, True)
@@ -529,6 +627,7 @@ class ShellcodeIDEWindow(QMainWindow):
             self._set_tab_visible(self.output_tabs, self.output_text, True)
             self._set_tab_visible(self.output_tabs, self.debug_widget, True)
             self._set_tab_visible(self.output_tabs, self.optimize_widget, True)
+            self._set_tab_visible(self.output_tabs, self.shellstorm_widget, True)
             # Show both input tabs (fallback state)
             try:
                 self.input_tabs.setTabVisible(idx_hex, True)
@@ -541,6 +640,12 @@ class ShellcodeIDEWindow(QMainWindow):
                     pass
             self._set_tab_visible(self.output_tabs, self.patterns_widget, True)
         self._update_toolbar_for_mode(mode)
+        # In Dev mode, detach any analysis-only highlighters
+        if mode == "assemble":
+            try:
+                self._apply_shellcode_highlighters(analysis_mode=False)
+            except Exception:
+                pass
 
     def on_input_tab_changed(self, idx: int):
         # Switch toolbar mode based on active input tab
@@ -593,12 +698,195 @@ class ShellcodeIDEWindow(QMainWindow):
         self._apply_mono(box)
         box.setReadOnly(True)
         box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        # Use default document margin to match Optimize panel appearance
+
+    def _apply_hll_highlighter(self) -> None:
+        # Choose lexer based on current HLL language
+        try:
+            lang = (self.hll_lang_combo.currentText() or "C").strip().lower()
+        except Exception:
+            lang = "c"
+        lexer = {
+            'c': 'c',
+            'python': 'python',
+            'zig': 'zig',
+            'rust': 'rust',
+            'go': 'go',
+        }.get(lang, 'text')
+        try:
+            if self.hll_code_hl:
+                try:
+                    self.hll_code_hl.setDocument(None)
+                except Exception:
+                    pass
+            self.hll_code_hl = create_code_highlighter(self.hll_text.document(), lexer_name=lexer)
+        except Exception:
+            self.hll_code_hl = None
+
+    def _on_hll_lang_changed(self) -> None:
+        try:
+            self._apply_hll_highlighter()
+        except Exception:
+            pass
+        try:
+            # Refresh content for the selected language
+            self._update_formats(getattr(self, '_last_bytes', b"") or b"")
+        except Exception:
+            pass
+    def _apply_shellcode_highlighters(self, analysis_mode: bool) -> None:
+        """Attach/detach Qt syntax highlighters for the Shellcode output pane.
+
+        In analysis mode, enable:
+        - Inline: Python-style string highlighting (already attached at init)
+        - C: C highlighter (already attached at init)
+        - Python: Python highlighter (already attached at init)
+        - Zig: Zig highlighter (already attached at init)
+        - Hex: Bad-byte hex highlighter to emphasize problematic bytes
+        Outside analysis mode, detach only the analysis-specific Hex highlighter.
+        """
+        # Manage bad-byte highlighters for Inline and Hex
+        try:
+            if analysis_mode:
+                # Hex
+                if self.hex_bad_hl:
+                    try:
+                        self.hex_bad_hl.setDocument(self.hex_text.document())
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        self.hex_bad_hl = HexBadByteHighlighter(self.hex_text.document())
+                    except Exception:
+                        self.hex_bad_hl = None
+                # Inline
+                if self.inline_bad_hl:
+                    try:
+                        self.inline_bad_hl.setDocument(self.inline_text.document())
+                    except Exception:
+                        pass
+                else:
+                    try:
+                        self.inline_bad_hl = InlineBadByteHighlighter(self.inline_text.document())
+                    except Exception:
+                        self.inline_bad_hl = None
+            else:
+                if self.hex_bad_hl:
+                    try:
+                        self.hex_bad_hl.setDocument(None)
+                    except Exception:
+                        pass
+                if self.inline_bad_hl:
+                    try:
+                        self.inline_bad_hl.setDocument(None)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+    def _sync_shellcode_padding_to_syscalls(self) -> None:
+        """Match the Shellcode pane paddings (margins/spacing) to the Syscalls tab.
+
+        Copies the first controls-row layout margins/spacing from the Syscalls panel
+        when available; otherwise falls back to the Syscalls panel's main layout
+        defaults. Applies to:
+        - Formats grid layout (overall margins/spacing)
+        - Inline/Hex header rows
+        - Copy As Code header row
+        """
+        sys_lay = getattr(self.syscalls_widget, 'layout', lambda: None)()
+        if not sys_lay:
+            return
+        # Prefer the first row (controls row) margins/spacing if present
+        try:
+            item0 = sys_lay.itemAt(0)
+            row_lay = item0.layout() if item0 and item0.layout() else None
+        except Exception:
+            row_lay = None
+        # Collect outer (panel) and inner (row) metrics
+        try:
+            outer_margins = sys_lay.contentsMargins()
+            outer_spacing = sys_lay.spacing()
+        except Exception:
+            outer_margins, outer_spacing = None, None
+        try:
+            row_margins = row_lay.contentsMargins() if row_lay else outer_margins
+            row_spacing = row_lay.spacing() if row_lay else outer_spacing
+        except Exception:
+            row_margins, row_spacing = outer_margins, outer_spacing
+        # Apply to Formats grid
+        try:
+            if hasattr(self, 'formats_layout') and self.formats_layout:
+                if outer_margins:
+                    self.formats_layout.setContentsMargins(outer_margins.left(), outer_margins.top(), outer_margins.right(), outer_margins.bottom())
+                if outer_spacing is not None:
+                    self.formats_layout.setHorizontalSpacing(outer_spacing)
+                    self.formats_layout.setVerticalSpacing(outer_spacing)
+        except Exception:
+            pass
+        # Helper to apply to a header QWidget containing an HBox layout
+        def _apply_header(w: QWidget) -> None:
+            try:
+                lay = w.layout()
+                if lay is None:
+                    return
+                # Match Syscalls' header row margins (inner row margins)
+                if row_margins:
+                    lay.setContentsMargins(row_margins.left(), row_margins.top(), row_margins.right(), row_margins.bottom())
+                if row_spacing is not None:
+                    lay.setSpacing(row_spacing)
+                # Ensure labels don't add extra padding beyond layout margins
+                for i in range(lay.count()):
+                    try:
+                        it = lay.itemAt(i)
+                        wid = it.widget()
+                        if hasattr(wid, 'setMargin') and isinstance(wid, QLabel):
+                            wid.setMargin(0)
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+        for hdr in (getattr(self, 'inline_header', None), getattr(self, 'hex_header', None), getattr(self, 'hll_header_row', None)):
+            if hdr:
+                _apply_header(hdr)
+
+    def _update_shellcode_bad_highlights(self, data: bytes) -> None:
+        """Update bad-byte positions for Inline and Hex highlighters from current data."""
+        try:
+            offs = self._compute_bad_offsets(data)
+        except Exception:
+            offs = set()
+        # Hex
+        try:
+            if self.hex_bad_hl:
+                self.hex_bad_hl.set_bad_offsets(offs)
+        except Exception:
+            pass
+        # Inline
+        try:
+            if self.inline_bad_hl:
+                self.inline_bad_hl.set_bad_offsets(offs)
+        except Exception:
+            pass
 
     def _labeled_box(self, text: str, target: Optional[QPlainTextEdit] = None) -> QWidget:
         w = QWidget()
         l = QHBoxLayout(w)
-        l.setContentsMargins(0, 4, 0, 0)
+        # Use default margins/spacing to match Syscalls panel feel
+        try:
+            _def_h = QHBoxLayout()
+            _m = _def_h.contentsMargins()
+            l.setContentsMargins(_m.left(), _m.top(), _m.right(), _m.bottom())
+            l.setSpacing(_def_h.spacing())
+        except Exception:
+            pass
         lbl = QLabel(text)
+        # Label styling consistent with defaults
+        try:
+            if text in ("Inline", "Hex", "Copy As Code"):
+                lbl.setMargin(0)
+                lbl.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+        except Exception:
+            pass
         copy_btn = QPushButton("Copy")
         copy_btn.setFixedWidth(60)
         l.addWidget(lbl)
@@ -622,6 +910,7 @@ class ShellcodeIDEWindow(QMainWindow):
                 pass
         l.addStretch(1)
         l.addWidget(copy_btn)
+        # Let the header row use default height for consistency with Optimize tab
         # Bind copy for the next widget added after label in layout usage
         def do_copy():
             if target is not None:
@@ -769,9 +1058,10 @@ class ShellcodeIDEWindow(QMainWindow):
         self.output_text.clear()
         self.inline_text.clear()
         self.hex_text.clear()
-        self.c_text.clear()
-        self.py_text.clear()
-        self.zig_text.clear()
+        try:
+            self.hll_text.clear()
+        except Exception:
+            pass
         self.status_len.setText("len: 0")
         # Reset status colors to default palette
         try:
@@ -855,9 +1145,32 @@ class ShellcodeIDEWindow(QMainWindow):
             self._refresh_hex_output(data)
         except Exception:
             self.hex_text.setPlainText(bytes_to_hex(data, sep=" "))
-        self.c_text.setPlainText(bytes_to_c_array(data, var_name="shellcode", include_len=True))
-        self.py_text.setPlainText(bytes_to_python_bytes(data, style="literal"))
-        self.zig_text.setPlainText(bytes_to_zig_array(data, var_name="shellcode"))
+        # High-level language output based on selection
+        try:
+            lang = (self.hll_lang_combo.currentText() or "C").strip().lower()
+        except Exception:
+            lang = "c"
+        if lang == 'c':
+            self.hll_text.setPlainText(bytes_to_c_array(data, var_name="shellcode", include_len=True))
+        elif lang == 'python':
+            self.hll_text.setPlainText(bytes_to_python_bytes(data, style="literal"))
+        elif lang == 'zig':
+            self.hll_text.setPlainText(bytes_to_zig_array(data, var_name="shellcode"))
+        elif lang == 'rust':
+            self.hll_text.setPlainText(bytes_to_rust_array(data, var_name="SHELLCODE"))
+        elif lang == 'go':
+            self.hll_text.setPlainText(bytes_to_go_slice(data, var_name="shellcode"))
+        else:
+            self.hll_text.setPlainText("")
+        try:
+            self._apply_hll_highlighter()
+        except Exception:
+            pass
+        # Refresh bad-byte highlights for Inline/Hex when available
+        try:
+            self._update_shellcode_bad_highlights(data)
+        except Exception:
+            pass
 
     def _refresh_hex_output(self, data: Optional[bytes] = None):
         """Refresh the Hex output area honoring the no-space checkbox."""
@@ -962,9 +1275,8 @@ class ShellcodeIDEWindow(QMainWindow):
         return "dracula" if self._is_dark_mode() else "rainbow_dash"
 
     def _refresh_disasm_highlighter(self):
-        # Recreate token highlighters for current architecture/style
+        # Recreate token highlighters for current architecture
         arch = self.arch_combo.currentText() or "x86_64"
-        style = self._preferred_style()
         # Output disassembly
         try:
             if self.disasm_highlighter:
@@ -972,7 +1284,7 @@ class ShellcodeIDEWindow(QMainWindow):
                     self.disasm_highlighter.setDocument(None)
                 except Exception:
                     pass
-            self.disasm_highlighter = create_disassembly_highlighter(self.output_text.document(), arch_name=arch, style_name=style)
+            self.disasm_highlighter = create_disassembly_highlighter(self.output_text.document(), arch_name=arch)
             try:
                 self.disasm_highlighter.rehighlight()
             except Exception:
@@ -986,7 +1298,7 @@ class ShellcodeIDEWindow(QMainWindow):
                     self.debug_asm_token_hl.setDocument(None)
                 except Exception:
                     pass
-            self.debug_asm_token_hl = create_disassembly_highlighter(self.debug_asm_text.document(), arch_name=arch, style_name=style)
+            self.debug_asm_token_hl = create_disassembly_highlighter(self.debug_asm_text.document(), arch_name=arch)
             try:
                 self.debug_asm_token_hl.rehighlight()
             except Exception:
@@ -1000,7 +1312,7 @@ class ShellcodeIDEWindow(QMainWindow):
                     self.asm_highlighter.setDocument(None)
                 except Exception:
                     pass
-            self.asm_highlighter = create_disassembly_highlighter(self.asm_edit.document(), arch_name=arch, style_name=style)
+            self.asm_highlighter = create_disassembly_highlighter(self.asm_edit.document(), arch_name=arch)
             try:
                 self.asm_highlighter.rehighlight()
             except Exception:
@@ -1012,43 +1324,25 @@ class ShellcodeIDEWindow(QMainWindow):
             self._refresh_syscalls_tab()
         except Exception:
             pass
-        # Output tab code highlighters (refresh for style changes)
+        # Output tab code highlighters (Qt-only, no style changes needed)
         try:
             if hasattr(self, 'inline_code_hl') and self.inline_code_hl:
                 try:
                     self.inline_code_hl.setDocument(None)
                 except Exception:
                     pass
-            self.inline_code_hl = create_code_highlighter(self.inline_text.document(), lexer_name="python", style_name=style)
+            self.inline_code_hl = create_code_highlighter(self.inline_text.document(), lexer_name="python")
         except Exception:
             self.inline_code_hl = None
         try:
-            if hasattr(self, 'c_code_hl') and self.c_code_hl:
+            if hasattr(self, 'hll_code_hl') and self.hll_code_hl:
                 try:
-                    self.c_code_hl.setDocument(None)
+                    self.hll_code_hl.setDocument(None)
                 except Exception:
                     pass
-            self.c_code_hl = create_code_highlighter(self.c_text.document(), lexer_name="c", style_name=style)
+            self._apply_hll_highlighter()
         except Exception:
-            self.c_code_hl = None
-        try:
-            if hasattr(self, 'py_code_hl') and self.py_code_hl:
-                try:
-                    self.py_code_hl.setDocument(None)
-                except Exception:
-                    pass
-            self.py_code_hl = create_code_highlighter(self.py_text.document(), lexer_name="python", style_name=style)
-        except Exception:
-            self.py_code_hl = None
-        try:
-            if hasattr(self, 'zig_code_hl') and self.zig_code_hl:
-                try:
-                    self.zig_code_hl.setDocument(None)
-                except Exception:
-                    pass
-            self.zig_code_hl = create_code_highlighter(self.zig_text.document(), lexer_name="zig", style_name=style)
-        except Exception:
-            self.zig_code_hl = None
+            self.hll_code_hl = None
 
     def _show_badchars_controls(self, show: bool):
         """Show/hide the bad-chars controls (checkbox + Edit…) in Dev mode only."""
