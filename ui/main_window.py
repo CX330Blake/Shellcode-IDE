@@ -7,7 +7,7 @@ from typing import Optional, Tuple
 _QT_LIB = None
 try:
     from PySide6.QtCore import Qt  # type: ignore
-    from PySide6.QtGui import QFont, QAction, QPalette  # type: ignore  # QAction is in QtGui on Qt6
+    from PySide6.QtGui import QFont, QAction, QPalette, QColor  # type: ignore  # QAction is in QtGui on Qt6
     from PySide6.QtWidgets import (  # type: ignore
         QApplication,
         QCheckBox,
@@ -23,6 +23,7 @@ try:
         QSizePolicy,
         QSplitter,
         QStatusBar,
+        QFrame,
         QTabWidget,
         QToolBar,
         QVBoxLayout,
@@ -32,7 +33,7 @@ try:
 except Exception:
     try:
         from PySide2.QtCore import Qt  # type: ignore
-        from PySide2.QtGui import QFont, QPalette  # type: ignore
+        from PySide2.QtGui import QFont, QPalette, QColor  # type: ignore
         from PySide2.QtWidgets import (  # type: ignore
             QAction,  # QAction is in QtWidgets on Qt5
             QApplication,
@@ -49,6 +50,7 @@ except Exception:
             QSizePolicy,
             QSplitter,
             QStatusBar,
+            QFrame,
             QTabWidget,
             QToolBar,
             QVBoxLayout,
@@ -302,12 +304,18 @@ class ShellcodeIDEWindow(QMainWindow):
         self.setStatusBar(sb)
         self.status_arch = QLabel("arch: -")
         self.status_len = QLabel("len: 0")
-        self.status_nulls = QLabel("nulls: 0")
         self.status_bad = QLabel("bad: 0")
         sb.addPermanentWidget(self.status_arch)
+        sb.addPermanentWidget(self._status_separator())
         sb.addPermanentWidget(self.status_len)
-        sb.addPermanentWidget(self.status_nulls)
+        sb.addPermanentWidget(self._status_separator())
         sb.addPermanentWidget(self.status_bad)
+
+        # Keep grip visible for resizing
+        try:
+            sb.setSizeGripEnabled(True)
+        except Exception:
+            pass
 
         # Wire actions
         self.act_assemble.triggered.connect(self.on_assemble)
@@ -418,6 +426,30 @@ class ShellcodeIDEWindow(QMainWindow):
                 self.act_disassemble.setVisible(True)
             except Exception:
                 pass
+
+    def _status_separator(self) -> QFrame:
+        frm = QFrame()
+        try:
+            frm.setFrameShape(QFrame.VLine)
+            frm.setFrameShadow(QFrame.Sunken)
+            try:
+                frm.setLineWidth(1)
+                frm.setMidLineWidth(0)
+            except Exception:
+                pass
+            # Give the separator breathing room
+            try:
+                frm.setFixedWidth(10)
+            except Exception:
+                pass
+        except Exception:
+            # Fallback to a simple label if QFrame isn't available
+            try:
+                lb = QLabel("|")
+                return lb  # type: ignore[return-value]
+            except Exception:
+                pass
+        return frm
 
     def _set_mode(self, mode: str):
         # Input side: navigate to relevant tab, but keep both visible for easy switching
@@ -632,11 +664,103 @@ class ShellcodeIDEWindow(QMainWindow):
         arch = self.arch_combo.currentText()
         self.status_arch.setText(f"Arch: {arch}")
         self.status_len.setText(f"Len: {len(raw)}")
-        self.status_nulls.setText(f"Nulls: {count_nulls(raw)}")
-        # bad pattern count excluding null-byte pattern (tracked separately)
-        pmatches = [m for m in self.bpm.match_patterns(raw) if not (m.pattern.type == 'hex' and m.pattern.value.strip().lower() in ('00', '0x00'))]
-        bad_count = sum(len(m.offsets) for m in pmatches)
+        null_cnt = count_nulls(raw)
+        # Bad count should include null bytes as bad characters, plus other patterns.
+        other_bad = self._bad_byte_offsets_for_status(raw)
+        null_offs = {i for i, b in enumerate(raw) if b == 0}
+        total_bad = other_bad | null_offs
+        bad_count = len(total_bad)
         self.status_bad.setText(f"Bad: {bad_count}")
+        # Colorize status based on presence of bad chars/nulls using theme-derived colors.
+        try:
+            good_col, bad_col = self._theme_accent_colors()
+            def set_label_color(lbl, good: bool):
+                col = good_col if good else bad_col
+                # stylesheet is simplest and works across Qt5/Qt6
+                try:
+                    lbl.setStyleSheet(f"QLabel {{ color: {col.name()}; }}")
+                except Exception:
+                    # Fallback: palette
+                    pal = lbl.palette()
+                    pal.setColor(QPalette.WindowText, col)
+                    lbl.setPalette(pal)
+            # Green when zero, red when non-zero
+            set_label_color(self.status_bad, bad_count == 0)
+        except Exception:
+            pass
+
+    def _theme_accent_colors(self) -> tuple:
+        """Derive success/error colors from the active Qt palette (Binary Ninja theme).
+
+        Returns a pair (good_green, bad_red) as QColors without hardcoded hex values.
+        Heuristic: take the current Highlight color as a base for saturation/value, and
+        remap hue to green/red to keep consistency with the theme brightness.
+        """
+        try:
+            pal = QApplication.instance().palette()
+        except Exception:
+            pal = None
+        base = QColor('#00aa00')  # minimal fallback
+        try:
+            if pal is not None:
+                # Prefer Highlight as the theme accent; fallback to Link
+                accent = pal.color(QPalette.Highlight)
+                if not accent.isValid():
+                    accent = pal.color(QPalette.Link)
+                if accent.isValid():
+                    base = accent
+        except Exception:
+            pass
+        # Extract HSV and remap hue while preserving S/V/A
+        try:
+            h, s, v, a = base.getHsv()
+        except Exception:
+            # Sensible defaults
+            h, s, v, a = (120, 180, 200, 255)
+        if h is None or h < 0:
+            h = 120
+        # Ensure reasonable saturation for visibility on both themes
+        s = max(140, min(255, s if isinstance(s, int) else 180))
+        v = max(160, min(255, v if isinstance(v, int) else 200))
+        good = QColor(); good.setHsv(120, s, v, a if isinstance(a, int) else 255)
+        bad = QColor(); bad.setHsv(0,   s, v, a if isinstance(a, int) else 255)
+        return (good, bad)
+
+    def _bad_byte_offsets_for_status(self, data: bytes) -> set:
+        """Compute a set of byte offsets that are considered 'bad' for status purposes.
+
+        - Excludes null bytes patterns (counted separately).
+        - For sequence patterns, counts every byte of each match span.
+        - For regex patterns, counts the start byte of each match (length unknown).
+        """
+        offs = set()
+        try:
+            pmatches = self.bpm.match_patterns(data)
+        except Exception:
+            pmatches = []
+        for m in pmatches:
+            # Skip explicit null-byte single hex pattern
+            if m.pattern.type == 'hex' and m.pattern.value.strip().lower() in ('00', '0x00'):
+                continue
+            if m.pattern.type == 'hex':
+                for o in m.offsets:
+                    offs.add(int(o))
+            elif m.pattern.type == 'sequence':
+                try:
+                    seq = self.bpm._parse_sequence(m.pattern.value)  # type: ignore[attr-defined]
+                except Exception:
+                    seq = None
+                seqlen = len(seq) if seq else 0
+                for o in m.offsets:
+                    if seqlen > 0:
+                        for k in range(seqlen):
+                            offs.add(int(o) + k)
+                    else:
+                        offs.add(int(o))
+            else:  # regex
+                for o in m.offsets:
+                    offs.add(int(o))
+        return offs
 
     # Actions
     def on_clear(self):
@@ -649,7 +773,12 @@ class ShellcodeIDEWindow(QMainWindow):
         self.py_text.clear()
         self.zig_text.clear()
         self.status_len.setText("len: 0")
-        self.status_nulls.setText("nulls: 0")
+        # Reset status colors to default palette
+        try:
+            for lbl in (self.status_bad,):
+                lbl.setStyleSheet("")
+        except Exception:
+            pass
 
     def on_disassemble(self):
         data_str = self.hex_edit.toPlainText()
