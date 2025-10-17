@@ -83,9 +83,13 @@ from ..formatters.base import (
     bytes_to_hex,
     bytes_to_inline,
     bytes_to_python_bytes,
+    bytes_to_python_stub,
     bytes_to_zig_array,
+    bytes_to_zig_stub,
     bytes_to_rust_array,
+    bytes_to_rust_stub,
     bytes_to_go_slice,
+    bytes_to_go_stub,
 )
 from ..utils.hexbytes import parse_hex_input, count_nulls
 
@@ -349,6 +353,7 @@ class ShellcodeIDEWindow(QMainWindow):
             get_asm=lambda: self.asm_edit.toPlainText(),
             set_asm=lambda s: self.asm_edit.setPlainText(s),
             get_arch=lambda: (self.arch_combo.currentText() or "x86_64"),
+            assemble_cb=self.on_assemble,
             parent=self,
         )
         self.output_tabs.addTab(self.optimize_widget, "Optimize")
@@ -387,8 +392,15 @@ class ShellcodeIDEWindow(QMainWindow):
         self.hll_text = QPlainTextEdit(); self._setup_output_box(self.hll_text)
         self.hll_lang_combo = QComboBox()
         try:
-            # supported generators (add C Stub for runnable test harness)
-            self.hll_lang_combo.addItems(["C", "C Stub", "Python", "Zig", "Rust", "Go"])  # supported generators
+            # supported generators (label C emits the runnable C stub)
+            self.hll_lang_combo.addItems(["C", "Python", "Zig", "Rust", "Go"])  # supported generators
+        except Exception:
+            pass
+        try:
+            # Prevent Enter/Return from leaking to the Assembly editor when changing selection
+            self.hll_lang_combo.installEventFilter(self)
+            # After a selection, move focus to the read-only output box to avoid editing ASM
+            self.hll_lang_combo.activated.connect(lambda *_: self.hll_text.setFocus())
         except Exception:
             pass
 
@@ -783,6 +795,24 @@ class ShellcodeIDEWindow(QMainWindow):
 
     def eventFilter(self, obj, event):  # type: ignore[override]
         try:
+            # Swallow Enter/Return keys on the Copy As Code language combo to avoid inserting\n
+            # unintended newlines in the Assembly editor when users confirm selection.
+            if obj is getattr(self, 'hll_lang_combo', None):
+                if event and hasattr(event, 'type'):
+                    t = event.type()
+                    try:
+                        key = event.key() if hasattr(event, 'key') else None
+                    except Exception:
+                        key = None
+                    if t in (QEvent.KeyPress, QEvent.KeyRelease) and key in (Qt.Key_Return, Qt.Key_Enter):
+                        try:
+                            event.accept()
+                        except Exception:
+                            pass
+                        return True
+        except Exception:
+            pass
+        try:
             if event and hasattr(event, 'type') and event.type() == QEvent.FocusOut:
                 if obj is self.asm_edit or obj is self.hex_edit:
                     try:
@@ -1043,6 +1073,7 @@ class ShellcodeIDEWindow(QMainWindow):
             'c': 'c',
             'c stub': 'c',
             'python': 'python',
+            'python stub': 'python',  # legacy label support
             'zig': 'zig',
             'rust': 'rust',
             'go': 'go',
@@ -1645,18 +1676,17 @@ class ShellcodeIDEWindow(QMainWindow):
             lang = (self.hll_lang_combo.currentText() or "C").strip().lower()
         except Exception:
             lang = "c"
-        if lang == 'c':
-            self.hll_text.setPlainText(bytes_to_c_array(data, var_name="shellcode", include_len=True))
-        elif lang == 'c stub':
+        if lang == 'c' or lang == 'c stub':  # accept legacy label
             self.hll_text.setPlainText(bytes_to_c_stub(data, var_name="shellcode"))
         elif lang == 'python':
-            self.hll_text.setPlainText(bytes_to_python_bytes(data, style="literal"))
+            self.hll_text.setPlainText(bytes_to_python_stub(data, var_name="shellcode"))
         elif lang == 'zig':
-            self.hll_text.setPlainText(bytes_to_zig_array(data, var_name="shellcode"))
+            self.hll_text.setPlainText(bytes_to_zig_stub(data, var_name="shellcode"))
         elif lang == 'rust':
-            self.hll_text.setPlainText(bytes_to_rust_array(data, var_name="SHELLCODE"))
+            # Prefer the concise RW->RX mmap+mprotect Rust stub with static array name 'S'
+            self.hll_text.setPlainText(bytes_to_rust_stub(data, var_name="S"))
         elif lang == 'go':
-            self.hll_text.setPlainText(bytes_to_go_slice(data, var_name="shellcode"))
+            self.hll_text.setPlainText(bytes_to_go_stub(data, var_name="shellcode"))
         else:
             self.hll_text.setPlainText("")
         try:

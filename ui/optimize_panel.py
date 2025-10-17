@@ -21,11 +21,20 @@ from ..backends.optimize import default_rules_for_arch, propose, apply_all, Tran
 
 
 class OptimizePanel(QWidget):
-    def __init__(self, get_asm: Callable[[], str], set_asm: Callable[[str], None], get_arch: Callable[[], str], parent=None):
+    def __init__(
+        self,
+        get_asm: Callable[[], str],
+        set_asm: Callable[[str], None],
+        get_arch: Callable[[], str],
+        assemble_cb: Optional[Callable[[], None]] = None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.get_asm = get_asm
         self.set_asm = set_asm
         self.get_arch = get_arch
+        # Optional callback to assemble after applying optimizations (Dev mode)
+        self.assemble_cb = assemble_cb
 
         layout = QVBoxLayout(self)
         # Header controls
@@ -231,3 +240,10 @@ class OptimizePanel(QWidget):
             self.set_asm(new_asm)
         # Refresh comparison against current editor contents
         self.on_preview()
+        # In Dev mode, after applying all transforms, assemble again to refresh outputs
+        try:
+            if callable(self.assemble_cb):
+                self.assemble_cb()
+        except Exception:
+            # Ignore assembly errors here; on_assemble will surface them if needed
+            pass

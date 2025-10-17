@@ -11,7 +11,7 @@ A Qt-based Binary Ninja plugin that helps you compose, analyze, optimize, valida
 
 - Two-way conversion: raw bytes/hex ⇆ assembly text
 - Assemble for any Binary Ninja architecture/platform
-- Multiple output formats: inline `\x..`, raw hex, C array, Python bytes, Zig `[]u8`
+- Multiple output formats: inline `\x..`, raw hex, C stub, Python stub, Zig stub, Rust stub, Go stub
 - Live metadata: byte length, instruction count, null count, endianness, arch
 - Configurable bad-pattern detection (e.g., `00`, `0a`, `ff`, sequences, regex)
 - Peephole optimizations with preview/confirm (e.g., `push 0` → `xor reg, reg; push reg`, `mov rax, imm8` when safe)
@@ -97,9 +97,11 @@ If you’re reading this inside `.../Binary Ninja/plugins/Shellcode-IDE`, you’
 - Export Formats
   - Inline: `"\x90\x90\x48..."`
   - Hex: `90 90 48 ...` or `0x90,0x90,...` (selectable)
-  - C: `unsigned char shellcode[] = {0x90, 0x90, ...}; size_t shellcode_len = sizeof(shellcode);`
-  - Python: `b"\x90\x90..."` or `bytes([0x90, 0x90, ...])`
-  - Zig: `const shellcode: []u8 = .{0x90, 0x90, ...};`
+  - C: minimal runnable C stub (mmap + function pointer)
+  - Python: minimal runnable Python stub (mmap + ctypes)
+  - Zig: minimal runnable Zig stub (page-alloc + mprotect + function pointer)
+  - Rust: minimal runnable Rust stub (mmap + function pointer)
+  - Go: minimal runnable Go stub (cgo + mmap + function pointer)
   - Configurable templates: variable names, include length, trailing comma, line wrapping
 
 - Bad-Pattern Detection
@@ -263,4 +265,3 @@ MIT (recommended). See `LICENSE` once added to the repository.
 
 - Binary Ninja team and community for the APIs and plugin ecosystem
 - Inspiration from common shellcode workflows and CTF tooling
-
