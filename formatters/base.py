@@ -82,36 +82,19 @@ def bytes_to_zig_array(data: bytes, var_name: str = "shellcode") -> str:
 
 
 def bytes_to_zig_stub(data: bytes, var_name: str = "shellcode", bytes_per_line: int = 16) -> str:
-    """Produce a minimal Zig test stub that executes the shellcode using std allocator + mprotect.
+    """Zig stub that places bytes in .text and calls them via function pointer.
 
-    - Allocates page-aligned RW memory via std.heap.page_allocator
-    - Copies the bytes
-    - Marks the region RWX via std.os.mprotect
-    - Casts to a function pointer and calls it
+    Matches the requested template for the Shellcode tab.
     """
-    # Build the byte literal with basic wrapping for readability
-    hex_list = [f"0x{h}" for h in _byte_iter(data)]
-    lines = []
-    step = max(1, int(bytes_per_line))
-    total = len(hex_list)
-    for i in range(0, total, step):
-        chunk = ", ".join(hex_list[i:i+step])
-        # Add a trailing comma between wrapped lines to keep a valid list
-        trailing = "," if (i + step) < total else ""
-        # Use a tab for indentation inside the shellcode literal per Zig style
-        lines.append(f"\t{chunk}{trailing}")
-    body = ("\n".join(lines)) if lines else ""
+    elems = ", ".join(f"0x{h}" for h in _byte_iter(data))
     return (
+        "// zig run shellcode.zig -O ReleaseFast\n\n"
         "const std = @import(\"std\");\n\n"
+        f"const {var_name} linksection(\".text\") = [_]u8{{ {elems} }};\n\n"
         "pub fn main() !void {\n"
-        f"    const {var_name}: []const u8 = &[_]u8{{\n{body}\n    }};\n"
-        "    const page = std.heap.page_allocator;\n"
-        f"    const aligned_len = std.mem.alignForward(usize, {var_name}.len, std.os.page_size);\n"
-        "    var buf = try page.allocAdvanced(u8, std.os.page_size, aligned_len, .exact);\n"
-        "    defer page.free(buf);\n"
-        f"    std.mem.copy(u8, buf, {var_name});\n"
-        "    try std.os.mprotect(buf, 7); // PROT_READ | PROT_WRITE | PROT_EXEC\n"
-        "    (@as(*const fn() callconv(.C) void, @ptrCast(@alignCast(buf.ptr))))();\n"
+        f"    const ptr: *const anyopaque = &{var_name};\n"
+        f"    const fn_{var_name}: *const fn () callconv(.c) void = @ptrCast(@alignCast(ptr));\n"
+        f"    fn_{var_name}();\n"
         "}\n"
     )
 
