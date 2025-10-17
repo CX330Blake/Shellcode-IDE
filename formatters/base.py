@@ -98,7 +98,8 @@ def bytes_to_zig_stub(data: bytes, var_name: str = "shellcode", bytes_per_line: 
         chunk = ", ".join(hex_list[i:i+step])
         # Add a trailing comma between wrapped lines to keep a valid list
         trailing = "," if (i + step) < total else ""
-        lines.append(f"    {chunk}{trailing}")
+        # Use a tab for indentation inside the shellcode literal per Zig style
+        lines.append(f"\t{chunk}{trailing}")
     body = ("\n".join(lines)) if lines else ""
     return (
         "const std = @import(\"std\");\n\n"
@@ -180,19 +181,6 @@ def bytes_to_go_stub(data: bytes, var_name: str = "shellcode", bytes_per_line: i
     body = ("\n".join(lines)) if lines else ""
     return (
         "package main\n\n"
-        "/*\n"
-        "#include <sys/mman.h>\n"
-        "#include <string.h>\n"
-        "#include <stdint.h>\n"
-        "#include <unistd.h>\n\n"
-        "static void* alloc_exec(size_t n) {\n"
-        "    size_t pagesize = (size_t)sysconf(_SC_PAGESIZE);\n"
-        "    size_t len = (n + pagesize - 1) & ~(pagesize - 1);\n"
-        "    void* p = mmap(NULL, len, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_PRIVATE|MAP_ANON, -1, 0);\n"
-        "    return p;\n"
-        "}\n\n"
-        "static void run(void* p) { ((void(*)())p)(); }\n"
-        "*/\n"
         "import \"C\"\n"
         "import \"unsafe\"\n\n"
         f"var {var_name} = []byte{{\n{body}\n}}\n\n"
