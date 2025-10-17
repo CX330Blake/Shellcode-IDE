@@ -23,5 +23,6 @@
   "syscall_favorites": {
     "x64": []
   },
-  "shellstorm_insecure": true
+  "shellstorm_insecure": true,
+  "migrated_00_default": true
 }

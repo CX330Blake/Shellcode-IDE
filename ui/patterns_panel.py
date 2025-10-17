@@ -29,7 +29,7 @@ class PatternsPanel(QWidget):
         layout = QVBoxLayout(self)
         # Top controls: enable checkbox + quick-adds
         top = QHBoxLayout()
-        self.chk_enabled = QCheckBox("Highlight bad bytes")
+        self.chk_enabled = QCheckBox("Highlight in Debug")
         cfg = load_config()
         try:
             self.chk_enabled.setChecked(bool(cfg.get("bad_highlight_enabled", True)))

@@ -6,8 +6,8 @@ from typing import Optional, Tuple
 # Qt compatibility: prefer PySide6 (Qt6), fallback to PySide2 (Qt5)
 _QT_LIB = None
 try:
-    from PySide6.QtCore import Qt, QTimer, QEvent  # type: ignore
-    from PySide6.QtGui import QFont, QAction, QPalette, QColor  # type: ignore  # QAction is in QtGui on Qt6
+    from PySide6.QtCore import Qt, QTimer, QEvent, QSize  # type: ignore
+    from PySide6.QtGui import QFont, QAction, QPalette, QColor, QIcon, QPixmap, QPainter  # type: ignore  # QAction is in QtGui on Qt6
     from PySide6.QtWidgets import (  # type: ignore
         QApplication,
         QCheckBox,
@@ -32,8 +32,8 @@ try:
     _QT_LIB = "PySide6"
 except Exception:
     try:
-        from PySide2.QtCore import Qt, QTimer, QEvent  # type: ignore
-        from PySide2.QtGui import QFont, QPalette, QColor  # type: ignore
+        from PySide2.QtCore import Qt, QTimer, QEvent, QSize  # type: ignore
+        from PySide2.QtGui import QFont, QPalette, QColor, QIcon, QPixmap, QPainter  # type: ignore
         from PySide2.QtWidgets import (  # type: ignore
             QAction,  # QAction is in QtWidgets on Qt5
             QApplication,
@@ -121,6 +121,34 @@ class ShellcodeIDEWindow(QMainWindow):
             self.bpm = BadPatternManager.deserialize(cfg.get("bad_patterns") or [])
         else:
             self.bpm = BadPatternManager()
+        # One-time migration: ensure 0x00 is enabled by default.
+        # If user previously disabled it, they can disable again; we only flip once.
+        try:
+            if not bool(cfg.get("migrated_00_default", False)):
+                pats = list(getattr(self.bpm, 'patterns', []) or [])
+                def _is_null_pat(p) -> bool:
+                    try:
+                        v = (p.value or "").strip().lower()
+                        if v.startswith('0x'):
+                            v = v[2:]
+                        return p.type == 'hex' and v == '00'
+                    except Exception:
+                        return False
+                found = False
+                for p in pats:
+                    if _is_null_pat(p):
+                        found = True
+                        p.enabled = True
+                        break
+                if not found:
+                    from ..backends.validator import Pattern as _Pat
+                    pats.insert(0, _Pat(type='hex', value='00', name='NULL byte', enabled=True))
+                self.bpm.patterns = pats
+                cfg["bad_patterns"] = self.bpm.serialize()
+                cfg["migrated_00_default"] = True
+                save_config(cfg)
+        except Exception:
+            pass
 
         # Toolbar
         tb = QToolBar("Main")
@@ -1488,12 +1516,13 @@ class ShellcodeIDEWindow(QMainWindow):
         self.status_arch.setText(f"Arch: {arch}")
         self.status_len.setText(f"Len: {len(raw)}")
         null_cnt = count_nulls(raw)
-        # Bad count should include null bytes as bad characters, plus other patterns.
-        other_bad = self._bad_byte_offsets_for_status(raw)
-        null_offs = {i for i, b in enumerate(raw) if b == 0}
-        total_bad = other_bad | null_offs
-        bad_count = len(total_bad)
-        self.status_bad.setText(f"Bad: {bad_count}")
+        # Match Debug tab highlights exactly (enabled patterns + toggle)
+        try:
+            bad_offs = self._compute_bad_offsets(raw)
+        except Exception:
+            bad_offs = set()
+        bad_count = len(bad_offs)
+        self.status_bad.setText(f"Bad Chars: {bad_count}")
         # Colorize status based on presence of bad chars/nulls using shared theme colors.
         try:
             good_col, bad_col = _good_bad_colors()
@@ -1582,6 +1611,60 @@ class ShellcodeIDEWindow(QMainWindow):
                 for o in m.offsets:
                     offs.add(int(o))
         return offs
+
+    def _set_optimize_bad_indicator(self, has_bad: bool, bad_color: QColor | None = None) -> None:
+        """Color the Debug tab text using the theme's bad color when bad bytes exist.
+
+        Removes any previously-set icon/bullet and updates only the Debug tab label color.
+        """
+        try:
+            idx = self.output_tabs.indexOf(self.debug_widget)
+        except Exception:
+            idx = -1
+        if idx < 0:
+            return
+        # Clear any previous icon or legacy bullet prefix
+        try:
+            self.output_tabs.setTabIcon(idx, QIcon())
+        except Exception:
+            pass
+        try:
+            txt = self.output_tabs.tabText(idx)
+            if txt.startswith('• '):
+                self.output_tabs.setTabText(idx, txt[2:])
+        except Exception:
+            pass
+
+        # Determine colors
+        try:
+            if bad_color is None:
+                _g, bad_color = _good_bad_colors()
+        except Exception:
+            bad_color = QColor(200, 60, 60)
+        try:
+            tb = self.output_tabs.tabBar()
+            pal = tb.palette() if hasattr(tb, 'palette') else None
+            # Default tab text color from palette
+            default_col = QColor()
+            if pal is not None:
+                try:
+                    # Prefer ButtonText/Text as common roles for tab text
+                    default_col = pal.color(QPalette.ButtonText)
+                    if not default_col.isValid():
+                        default_col = pal.color(QPalette.Text)
+                except Exception:
+                    pass
+            if not default_col.isValid():
+                default_col = QColor(0, 0, 0)
+
+            # Apply per-tab text color if available
+            if hasattr(tb, 'setTabTextColor'):
+                try:
+                    tb.setTabTextColor(idx, bad_color if has_bad else default_col)
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     # Actions
     def on_clear(self):
@@ -1770,6 +1853,21 @@ class ShellcodeIDEWindow(QMainWindow):
                     offs.add(int(o))
         return offs
 
+    def _null_pattern_enabled(self) -> bool:
+        try:
+            for p in getattr(self.bpm, 'patterns', []) or []:
+                try:
+                    v = (p.value or "").strip().lower()
+                    if v.startswith('0x'):
+                        v = v[2:]
+                    if p.type == 'hex' and v == '00' and bool(getattr(p, 'enabled', True)):
+                        return True
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return False
+
     def _update_debug(self, data: bytes, arch: str):
         # Opcode + objdump-like assembly
         self._update_opcode(data)
@@ -1790,6 +1888,15 @@ class ShellcodeIDEWindow(QMainWindow):
                 self.debug_asm_bad_hl.set_bad_offsets(bad)
         except Exception:
             pass
+        # Update Debug tab label color live based on highlight presence
+        try:
+            _g, bad_col = _good_bad_colors()
+        except Exception:
+            bad_col = QColor(200, 60, 60)
+        try:
+            self._set_optimize_bad_indicator(bool(bad), bad_col)
+        except Exception:
+            pass
 
     def on_badchars_toggled(self, checked: bool):
         # Persist setting and refresh current highlights
@@ -1801,6 +1908,8 @@ class ShellcodeIDEWindow(QMainWindow):
             arch = self.arch_combo.currentText() or "x86_64"
             # Refresh opcode/debug highlights
             self._update_debug(data, arch)
+            # Keep status bar indicator in sync with Debug highlights
+            self._update_stats(data)
 
     def _is_dark_mode(self) -> bool:
         try:
