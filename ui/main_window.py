@@ -68,6 +68,7 @@ from .patterns_panel import PatternsPanel
 from .highlighters import (
     create_disassembly_highlighter,
     create_code_highlighter,
+    create_inline_highlighter,
     HexBadByteHighlighter,
     AsmObjdumpBadByteHighlighter,
     InlineBadByteHighlighter,
@@ -465,7 +466,8 @@ class ShellcodeIDEWindow(QMainWindow):
 
         # Syntax highlighting for Output tab code blocks using Qt-only highlighters
         try:
-            self.inline_code_hl = create_code_highlighter(self.inline_text.document(), lexer_name="python")
+            # Inline: custom highlighter that colors only [0-9a-f]
+            self.inline_code_hl = create_inline_highlighter(self.inline_text.document())
         except Exception:
             self.inline_code_hl = None
         # High-level language code highlighter; depends on selected language
@@ -565,6 +567,21 @@ class ShellcodeIDEWindow(QMainWindow):
         val_layout.addWidget(self.validation_text)
         self.output_tabs.addTab(val_container, "Validation")
         self.validation_container = val_container
+        # Ensure Shellcode tab appears before Debug tab
+        try:
+            dbg_idx = self.output_tabs.indexOf(self.debug_widget)
+            sh_idx = self.output_tabs.indexOf(self.formats_widget)
+            if dbg_idx != -1 and sh_idx != -1 and sh_idx > dbg_idx:
+                dbg_text = self.output_tabs.tabText(dbg_idx)
+                sh_text = self.output_tabs.tabText(sh_idx)
+                # Remove in descending order to avoid index shifts
+                self.output_tabs.removeTab(sh_idx)
+                self.output_tabs.removeTab(dbg_idx)
+                # Insert swapped
+                self.output_tabs.insertTab(dbg_idx, self.formats_widget, sh_text)
+                self.output_tabs.insertTab(sh_idx, self.debug_widget, dbg_text)
+        except Exception:
+            pass
         # output_tabs already added with stretch above
         splitter.addWidget(right)
 
@@ -914,7 +931,7 @@ class ShellcodeIDEWindow(QMainWindow):
                 sys_ok = False
             self._set_tab_visible(self.output_tabs, self.syscalls_widget, bool(sys_ok))
             try:
-                self.output_tabs.setCurrentWidget(self.debug_widget)
+                self.output_tabs.setCurrentWidget(self.formats_widget)
             except Exception:
                 pass
             # Show patterns tab in dev mode

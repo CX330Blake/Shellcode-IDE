@@ -662,7 +662,7 @@ class SimpleCHighlighter(QSyntaxHighlighter):
         self.fmt_string  = QTextCharFormat(); self.fmt_string.setForeground(_theme_token_color('stringColor') or _theme_accent_color())
         self.fmt_char    = QTextCharFormat(); self.fmt_char.setForeground(_theme_token_color('stringColor') or _theme_accent_color())
         self.fmt_comment = QTextCharFormat(); self.fmt_comment.setForeground(_theme_token_color('commentColor') or _theme_muted_color()); self.fmt_comment.setFontItalic(True)
-        self.fmt_pp      = QTextCharFormat(); self.fmt_pp.setForeground(_theme_token_color('annotationColor') or _palette_role_color('BrightText') or _theme_muted_color())
+        self.fmt_pp      = QTextCharFormat(); self.fmt_pp.setForeground(_theme_token_color('addressColor') or _palette_role_color('BrightText') or _theme_muted_color())
 
         self._keywords = set(
             "auto break case const continue default do else enum extern for goto if register return sizeof static struct switch typedef union volatile while inline _Atomic _Alignas _Alignof _Thread_local"
@@ -945,18 +945,26 @@ class SimplePythonHighlighter(QSyntaxHighlighter):
             if ch in ('"', "'"):
                 # triple or single
                 is_triple = (i + 2 < len(code) and code[i+1] == ch and code[i+2] == ch)
+                # include optional string prefixes like b, r, f (and combos) immediately before quote
+                s = i
+                k = i - 1
+                while k >= 0 and code[k] in 'rRbBuUfF':
+                    k -= 1
+                # only include prefix if not part of an identifier
+                if k < i - 1 and not (k >= 0 and (code[k] == '_' or code[k].isalnum())):
+                    s = k + 1
                 if is_triple:
                     delim = ch * 3
                     j = i + 3
                     endc = code.find(delim, j)
                     if endc == -1:
-                        setFormat(i, len(code) - i, fmt_str)
+                        setFormat(s, len(code) - s, fmt_str)
                         self.setCurrentBlockState(self.IN_TRIPLE_SINGLE if ch == "'" else self.IN_TRIPLE_DOUBLE)
-                        code = code[:i]  # mask rest
+                        code = code[:s]  # mask rest
                         break
                     else:
-                        setFormat(i, endc - i + 3, fmt_str)
-                        for k in range(i, min(endc + 3, len(masked))): masked[k] = ' '
+                        setFormat(s, endc - s + 3, fmt_str)
+                        for k2 in range(s, min(endc + 3, len(masked))): masked[k2] = ' '
                         i = endc + 3
                         continue
                 # single/double quoted
@@ -965,8 +973,8 @@ class SimplePythonHighlighter(QSyntaxHighlighter):
                     if code[j] == '\\': j += 2; continue
                     if code[j] == ch: j += 1; break
                     j += 1
-                setFormat(i, j - i, fmt_str)
-                for k in range(i, min(j, len(masked))): masked[k] = ' '
+                setFormat(s, j - s, fmt_str)
+                for k2 in range(s, min(j, len(masked))): masked[k2] = ' '
                 i = j
             else:
                 i += 1
@@ -1721,6 +1729,36 @@ class UnifiedDiffHighlighter(QSyntaxHighlighter):
 # Factories
 # --------------------------
 
+class InlineHexCharOnlyHighlighter(QSyntaxHighlighter):
+    """Highlighter for the Inline view: highlights only digits and a–f.
+
+    - Colors characters in [0-9a-f] using the Binary Ninja numberColor role.
+    - Everything else remains unstyled, preserving the UI theme.
+    """
+
+    def __init__(self, document):
+        QSyntaxHighlighter.__init__(self, document)
+        self.fmt_num = QTextCharFormat()
+        self.fmt_num.setForeground(_theme_token_color('numberColor') or _theme_accent_color())
+
+    def highlightBlock(self, text: str) -> None:  # type: ignore
+        if not text:
+            return
+        setFormat = self.setFormat
+        fmt = self.fmt_num
+        i = 0; n = len(text)
+        def is_hex_char(ch: str) -> bool:
+            return ch.isdigit() or ('a' <= ch <= 'f')
+        while i < n:
+            if is_hex_char(text[i]):
+                j = i + 1
+                while j < n and is_hex_char(text[j]):
+                    j += 1
+                setFormat(i, j - i, fmt)
+                i = j
+            else:
+                i += 1
+
 def _first_available_style(names):
     try:
         from pygments.styles import get_style_by_name
@@ -1797,3 +1835,8 @@ def create_best_highlighter(
 def create_qt_c_highlighter(document):
     """Factory for lightweight C highlighter using Qt only (compat)."""
     return SimpleCHighlighter(document)
+
+
+def create_inline_highlighter(document):
+    """Factory for Inline pane highlighter that colors only 0-9 and a-f."""
+    return InlineHexCharOnlyHighlighter(document)
