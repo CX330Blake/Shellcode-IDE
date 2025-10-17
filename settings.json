@@ -24,5 +24,10 @@
     "x64": []
   },
   "shellstorm_insecure": true,
-  "migrated_00_default": true
+  "migrated_00_default": true,
+  "recent_files": [
+    "/System/Volumes/Data/Users/CX330/Working/Share/x64asm/shell.asm",
+    "/System/Volumes/Data/Users/CX330/Working/Share/x64asm/shell.bin"
+  ],
+  "last_open_dir": "/Users/CX330/Working/Share/MplabProjects/lab4.X"
 }

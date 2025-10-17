@@ -234,23 +234,13 @@ class ShellcodeIDEWindow(QMainWindow):
                 self._update_formats(b)
                 self._update_stats(b)
                 self._last_bytes = b
-                # Take user to the Hex editor for immediate editing
-                try:
-                    self.input_tabs.setCurrentWidget(self.hex_edit)
-                    self.hex_edit.setFocus()
-                except Exception:
-                    pass
+                # Stay on File tab; do not switch editors
             except Exception:
                 pass
         def _filetab_insert_asm_text(s: str) -> None:
             try:
                 self.asm_edit.setPlainText(s)
-                # Take user to the Assembly editor for immediate editing
-                try:
-                    self.input_tabs.setCurrentWidget(self.asm_edit)
-                    self.asm_edit.setFocus()
-                except Exception:
-                    pass
+                # Stay on File tab; do not switch editors
             except Exception:
                 pass
         # Provide a mode provider so the File tab can enforce Analysis-only-bytes
@@ -356,10 +346,8 @@ class ShellcodeIDEWindow(QMainWindow):
         self.opcode_text.setReadOnly(True)
         dbg_layout.addWidget(self._labeled_box("Opcode", target=self.opcode_text))
         dbg_layout.addWidget(self.opcode_text)
-        try:
-            self.op_hl = HexBadByteHighlighter(self.opcode_text.document())
-        except Exception:
-            self.op_hl = None
+        # Disable coloring in Debug tab: keep original text color
+        self.op_hl = None
         # Assembly block
         self.debug_asm_text = QPlainTextEdit()
         self._apply_mono(self.debug_asm_text)
@@ -370,13 +358,8 @@ class ShellcodeIDEWindow(QMainWindow):
             self.debug_asm_bad_hl = AsmObjdumpBadByteHighlighter(self.debug_asm_text.document())
         except Exception:
             self.debug_asm_bad_hl = None
-        # Token highlighter for debug assembly (Pygments)
-        try:
-            self.debug_asm_token_hl = create_disassembly_highlighter(
-                self.debug_asm_text.document(), arch_name=self.arch_combo.currentText() or "x86_64", style_name=self._preferred_style()
-            )
-        except Exception:
-            self.debug_asm_token_hl = None
+        # Do not use assembly token highlighter in Debug pane; only bad-char highlighting
+        self.debug_asm_token_hl = None
         self.output_tabs.addTab(self.debug_widget, "Debug")
 
         # Optimize panel (Dev mode)
@@ -1695,12 +1678,12 @@ class ShellcodeIDEWindow(QMainWindow):
         try:
             tb = self.output_tabs.tabBar()
             pal = tb.palette() if hasattr(tb, 'palette') else None
-            # Default tab text color from palette
+            # Default tab text color from palette (match other tabs)
             default_col = QColor()
             if pal is not None:
                 try:
-                    # Prefer ButtonText/Text as common roles for tab text
-                    default_col = pal.color(QPalette.ButtonText)
+                    role = tb.foregroundRole() if hasattr(tb, 'foregroundRole') else QPalette.ButtonText
+                    default_col = pal.color(role)
                     if not default_col.isValid():
                         default_col = pal.color(QPalette.Text)
                 except Exception:
