@@ -105,10 +105,11 @@ class ShellcodeIDEWindow(QMainWindow):
         self.setWindowTitle("Shellcode IDE")
         # Slightly narrower default width for better fit on smaller screens
         self.resize(900, 700)
-        # Compute centered geometry before the window is shown (best-effort).
-        # Some platforms/managers override initial geometry on show; we'll
-        # also center once after show via a one-shot timer (see showEvent).
-        self._did_center_after_show = False
+        # Compute centered geometry before the window is shown (best-effort),
+        # and then finalize exact centering synchronously in showEvent using
+        # frameGeometry so decorations are accounted for without a visible move.
+        self._did_center_after_show = True  # disable any delayed re-centering
+        self._did_first_show_center = False  # will center once in showEvent
         try:
             self._set_initial_center_geometry()
         except Exception:
@@ -716,15 +717,47 @@ class ShellcodeIDEWindow(QMainWindow):
         # Final centering happens once after the window is shown.
 
     def showEvent(self, event):  # type: ignore[override]
+        # Center synchronously before the first paint using frameGeometry
+        # so the window appears already centered without a post-show jump.
         try:
-            super().showEvent(event)
+            if not getattr(self, '_did_first_show_center', False):
+                center_point = None
+                # Prefer parent window center when available
+                try:
+                    p = self.parentWidget()
+                    if p and p.isWindow():
+                        center_point = p.frameGeometry().center()
+                except Exception:
+                    center_point = None
+                if center_point is None:
+                    try:
+                        # Use the screen that will show this window
+                        from PySide6.QtGui import QGuiApplication  # type: ignore
+                        scr = getattr(self, 'screen', lambda: None)() or QGuiApplication.primaryScreen()
+                        ag = scr.availableGeometry() if scr else None
+                        center_point = ag.center() if ag else None
+                    except Exception:
+                        center_point = None
+                if center_point is None:
+                    try:
+                        # Qt5 fallback
+                        desk = QApplication.desktop()  # type: ignore[attr-defined]
+                        ag = desk.availableGeometry(self)
+                        center_point = ag.center()
+                    except Exception:
+                        center_point = None
+                if center_point is not None:
+                    try:
+                        fg = self.frameGeometry()
+                        fg.moveCenter(center_point)
+                        self.move(fg.topLeft())
+                    except Exception:
+                        pass
+                self._did_first_show_center = True
         except Exception:
             pass
-        # Center once after the window is visible so frame decorations
-        # are accounted for and any WM repositioning is overridden.
         try:
-            if not getattr(self, '_did_center_after_show', False):
-                QTimer.singleShot(0, self._center_after_show)
+            super().showEvent(event)
         except Exception:
             pass
 
@@ -902,6 +935,24 @@ class ShellcodeIDEWindow(QMainWindow):
 
     def _set_initial_center_geometry(self) -> None:
         """Compute and set a centered geometry prior to show()."""
+        # Prefer centering relative to a parent window if available (e.g., BN main window)
+        try:
+            p = self.parentWidget()
+            if p and p.isWindow():
+                w, h = self.width(), self.height()
+                try:
+                    pg = p.frameGeometry()
+                    cx, cy = pg.center().x(), pg.center().y()
+                except Exception:
+                    pg = p.geometry()
+                    cx = pg.x() + pg.width() // 2
+                    cy = pg.y() + pg.height() // 2
+                x = int(cx - w // 2)
+                y = int(cy - h // 2)
+                self.setGeometry(x, y, w, h)
+                return
+        except Exception:
+            pass
         # Determine available geometry (primary screen)
         ag = None
         try:
