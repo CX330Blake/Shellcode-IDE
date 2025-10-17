@@ -177,8 +177,8 @@ class ShellcodeIDEWindow(QMainWindow):
         self.arch_combo = QComboBox()
         self._populate_arch_platform()
 
-        self.act_assemble = QAction("Assemble", self)
-        self.act_disassemble = QAction("Disassemble", self)
+        self.act_assemble = QAction("Assemble 🛠️", self)
+        self.act_disassemble = QAction("Disassemble ⏪", self)
 
         tb.addWidget(QLabel("Mode:"))
         tb.addWidget(self.mode_combo)
