@@ -862,6 +862,12 @@ class SimplePythonHighlighter(QSyntaxHighlighter):
         while i < n:
             ch = code[i]
             if ch == '0' and i + 1 < n and code[i+1] in 'xXbBoO':
+                # include optional leading sign when not part of an identifier
+                s = i
+                if i - 1 >= 0 and code[i-1] in '+-':
+                    p = i - 2
+                    if not (p >= 0 and (code[p] == '_' or code[p].isalnum() or code[p] in ')]}')):
+                        s = i - 1
                 j = i + 2
                 valid = '01' if code[i+1] in 'bB' else ('01234567' if code[i+1] in 'oO' else None)
                 if valid is None:
@@ -869,13 +875,19 @@ class SimplePythonHighlighter(QSyntaxHighlighter):
                 else:
                     while j < n and code[j] in valid: j += 1
                 if j > i + 2:
-                    setFormat(i, j - i, fmt_num)
+                    setFormat(s, j - s, fmt_num)
                 i = j
             elif ch.isdigit():
+                # include optional leading sign when not part of an identifier
+                s = i
+                if i - 1 >= 0 and code[i-1] in '+-':
+                    p = i - 2
+                    if not (p >= 0 and (code[p] == '_' or code[p].isalnum() or code[p] in ')]}')):
+                        s = i - 1
                 j = i + 1
                 while j < n and (code[j].isdigit() or code[j] in '._'):
                     j += 1
-                setFormat(i, j - i, fmt_num)
+                setFormat(s, j - s, fmt_num)
                 i = j
             else:
                 i += 1

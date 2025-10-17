@@ -72,6 +72,7 @@ from .highlighters import (
     HexBadByteHighlighter,
     AsmObjdumpBadByteHighlighter,
     InlineBadByteHighlighter,
+    _good_bad_colors,
 )
 from .optimize_panel import OptimizePanel
 from .file_tab import FileDropTab
@@ -1493,9 +1494,9 @@ class ShellcodeIDEWindow(QMainWindow):
         total_bad = other_bad | null_offs
         bad_count = len(total_bad)
         self.status_bad.setText(f"Bad: {bad_count}")
-        # Colorize status based on presence of bad chars/nulls using theme-derived colors.
+        # Colorize status based on presence of bad chars/nulls using shared theme colors.
         try:
-            good_col, bad_col = self._theme_accent_colors()
+            good_col, bad_col = _good_bad_colors()
             def set_label_color(lbl, good: bool):
                 col = good_col if good else bad_col
                 # stylesheet is simplest and works across Qt5/Qt6
@@ -1511,41 +1512,39 @@ class ShellcodeIDEWindow(QMainWindow):
         except Exception:
             pass
 
-    def _theme_accent_colors(self) -> tuple:
-        """Derive success/error colors from the active Qt palette (Binary Ninja theme).
+    def _status_palette_colors(self) -> tuple:
+        """Return (good_color, bad_color) from the active Qt palette only.
 
-        Returns a pair (good_green, bad_red) as QColors without hardcoded hex values.
-        Heuristic: take the current Highlight color as a base for saturation/value, and
-        remap hue to green/red to keep consistency with the theme brightness.
+        - good_color: prefer `QPalette.Highlight`, fallback `QPalette.Link`.
+        - bad_color: prefer `QPalette.BrightText`. If it matches `QPalette.Text`,
+          derive a darker variant from `QPalette.Link` to stay within palette.
         """
         try:
             pal = QApplication.instance().palette()
         except Exception:
             pal = None
-        base = QColor('#00aa00')  # minimal fallback
-        try:
-            if pal is not None:
-                # Prefer Highlight as the theme accent; fallback to Link
-                accent = pal.color(QPalette.Highlight)
-                if not accent.isValid():
-                    accent = pal.color(QPalette.Link)
-                if accent.isValid():
-                    base = accent
-        except Exception:
-            pass
-        # Extract HSV and remap hue while preserving S/V/A
-        try:
-            h, s, v, a = base.getHsv()
-        except Exception:
-            # Sensible defaults
-            h, s, v, a = (120, 180, 200, 255)
-        if h is None or h < 0:
-            h = 120
-        # Ensure reasonable saturation for visibility on both themes
-        s = max(140, min(255, s if isinstance(s, int) else 180))
-        v = max(160, min(255, v if isinstance(v, int) else 200))
-        good = QColor(); good.setHsv(120, s, v, a if isinstance(a, int) else 255)
-        bad = QColor(); bad.setHsv(0,   s, v, a if isinstance(a, int) else 255)
+        good = QColor()
+        bad = QColor()
+        if pal is not None:
+            try:
+                good = pal.color(QPalette.Highlight)
+                if not good.isValid():
+                    good = pal.color(QPalette.Link)
+            except Exception:
+                pass
+            try:
+                bad = pal.color(QPalette.BrightText)
+                # If BrightText is not distinct or invalid, derive from Link
+                if (not bad.isValid()) or (bad == pal.color(QPalette.Text)):
+                    alt = pal.color(QPalette.Link)
+                    bad = QColor(alt).darker(150) if alt.isValid() else pal.color(QPalette.Text)
+            except Exception:
+                pass
+        # Final fallbacks if palette is unavailable
+        if not good.isValid():
+            good = QColor(Qt.green) if 'Qt' in globals() else QColor('#00aa00')
+        if not bad.isValid():
+            bad = QColor(Qt.red) if 'Qt' in globals() else QColor('#cc3333')
         return (good, bad)
 
     def _bad_byte_offsets_for_status(self, data: bytes) -> set:
