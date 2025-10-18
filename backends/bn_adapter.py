@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Iterable, List, Optional
+import os
 import re
 
 
@@ -80,52 +81,73 @@ class BNAdapter:
         arch_name: str,
         platform_name: Optional[str] = None,
         addr: int = 0,
+        allow_labels: bool = False,
     ) -> bytes:
-        if self.bn is None:
-            raise RuntimeError("Binary Ninja API is not available for assembling.")
-        arch = self._get_arch(arch_name)
+        """Assemble assembly text into bytes.
 
-        # Sanitize assembly: strip comments, labels, and directives that BN may not accept
-        sanitized, line_map = self._sanitize_asm(asm_text)
-
-        # Try BN assembler first
-        try:
-            data = arch.assemble(sanitized, addr)
-            if data:
-                return data
-        except Exception as e:
-            # Try a couple BN-friendly rewrites before giving up
+        - When `allow_labels` is False (default), aggressively sanitize by
+          removing labels/directives for shellcode-friendly, line-oriented
+          diagnostics.
+        - When `allow_labels` is True, perform block assembly: preserve labels
+          and forward references (only strip comments/blank lines). Also tries
+          to inline simple NASM/YASM `%include` directives relative to CWD.
+        """
+        # Optionally expand simple include directives in block mode
+        src_text = asm_text
+        if allow_labels:
             try:
-                rewritten = self._bn_rewrite_movabs_imm64(sanitized)
-                if rewritten != sanitized:
-                    data = arch.assemble(rewritten, addr)
-                    if data:
-                        return data
-            except Exception:
-                pass
-            # Try to augment BN error with original line mapping when possible
-            bn_err = self._augment_bn_error(e, sanitized, line_map)
-        else:
-            bn_err = None
+                src_text = self._preprocess_includes(src_text, base_dirs=[os.getcwd()])
+            except Exception as inc_err:
+                raise RuntimeError(f"Preprocessor error: {inc_err}")
+        # Sanitize assembly per mode
+        sanitized, line_map = self._sanitize_asm(src_text, keep_labels=bool(allow_labels))
 
-        # Optional fallback: keystone, if installed
+        # Try Keystone assembler first (default)
+        ks_err = None
         try:
             data = self._assemble_with_keystone(sanitized, arch_name, addr)
             if data:
                 return data
-        except Exception:
-            pass
+        except Exception as e:
+            ks_err = str(e)
 
+        # Fallback to Binary Ninja assembler if available
+        if self.bn is not None:
+            try:
+                arch = self._get_arch(arch_name)
+                data = arch.assemble(sanitized, addr)
+                if data:
+                    return data
+            except Exception as e:
+                # Try BN-friendly rewrites
+                try:
+                    rewritten = self._bn_rewrite_movabs_imm64(sanitized)
+                    if rewritten != sanitized:
+                        data = arch.assemble(rewritten, addr)
+                        if data:
+                            return data
+                except Exception:
+                    pass
+                # Augment BN error with original line mapping
+                bn_err = self._augment_bn_error(e, sanitized, line_map)
+            else:
+                bn_err = None
+        else:
+            bn_err = "Binary Ninja API is not available"
+
+        # Both assemblers failed
         msg = f"Assembly failed"
-        if bn_err is not None:
+        if ks_err:
+            msg += f": {ks_err}"
+        if bn_err and ks_err:
+            msg += f"\nBinary Ninja fallback also failed: {bn_err}"
+        elif bn_err:
             msg += f": {bn_err}"
-        msg += ".\nTried Binary Ninja assembler"
-        try:
-            import keystone  # type: ignore  # noqa: F401
-            msg += " and Keystone fallback"
-        except Exception:
-            msg += " (Keystone not installed)"
-        msg += ".\nTips: use 'movabs' for 64-bit immediates, remove directives/labels, or install keystone-engine."
+        msg += ".\nTried Keystone assembler"
+        if self.bn is not None:
+            msg += " and Binary Ninja fallback"
+        msg += ".\nTips: use 'movabs' for 64-bit immediates, "
+        msg += ("avoid unsupported directives if using labels." if allow_labels else "remove directives/labels or enable 'Allow labels'.")
         raise RuntimeError(msg)
 
     def _bn_rewrite_movabs_imm64(self, asm: str) -> str:
@@ -135,13 +157,19 @@ class BNAdapter:
         This preserves semantics and helps common shellcode snippets assemble.
         """
         out_lines: list[str] = []
-        pat = re.compile(r"^\s*mov\s+(r(?:[0-9]+|[abcd]x|[sb]p|[sd]i)),\s*(0x[0-9a-fA-F]+|\d+)\s*$", re.IGNORECASE)
+        # Support optional leading label: 'label: mov rax, IMM'
+        pat = re.compile(
+            r"^\s*(?:(?P<label>[A-Za-z_.$][\w.$@]*):\s*)?mov\s+"
+            r"(?P<reg>r(?:[0-9]+|[abcd]x|[sb]p|[sd]i)),\s*(?P<imm>0x[0-9a-fA-F]+|\d+)\s*$",
+            re.IGNORECASE,
+        )
         for line in asm.splitlines():
             m = pat.match(line)
             if not m:
                 out_lines.append(line)
                 continue
-            reg, imm = m.group(1), m.group(2)
+            reg, imm = m.group("reg"), m.group("imm")
+            label = m.group("label")
             is_hex = imm.lower().startswith('0x')
             try:
                 val = int(imm, 16 if is_hex else 10)
@@ -151,7 +179,8 @@ class BNAdapter:
             if val is None or val <= 0xFFFFFFFF:
                 out_lines.append(line)
                 continue
-            new_line = f"movabs {reg}, {imm}"
+            prefix = f"{label}: " if label else ""
+            new_line = f"{prefix}movabs {reg}, {imm}"
             out_lines.append(new_line)
         return "\n".join(out_lines)
 
@@ -236,9 +265,13 @@ class BNAdapter:
             raise RuntimeError(f"Architecture not found: {name}")
 
     # --- helpers ---
-    def _sanitize_asm(self, text: str) -> tuple[str, List[int]]:
+    def _sanitize_asm(self, text: str, keep_labels: bool = False) -> tuple[str, List[int]]:
         """Return (sanitized_text, line_map) where line_map[i] = original line number (1-based)
         for sanitized line i.
+
+        If keep_labels is True, retain label definitions and label+instruction
+        lines, only stripping comments and blanks. Otherwise, drop labels and
+        assembler directives to minimize surprises during shellcode assembly.
         """
         lines: List[str] = []
         mapping: List[int] = []
@@ -249,21 +282,80 @@ class BNAdapter:
             s = s.strip()
             if not s:
                 continue
-            # strip label-only lines: label:
-            if re.match(r"^[A-Za-z_.$][\w.$@]*:\s*$", s):
-                continue
-            # strip leading label when followed by instruction on same line: label: instr ...
-            m = re.match(r"^([A-Za-z_.$][\w.$@]*):\s*(.+)$", s)
-            if m:
-                s = m.group(2).strip()
-                if not s:
+            if not keep_labels:
+                # strip label-only lines: label:
+                if re.match(r"^[A-Za-z_.$][\w.$@]*:\s*$", s):
                     continue
-            # drop assembler directives starting with '.'
-            if re.match(r"^\s*\.", s):
-                continue
+                # strip leading label when followed by instruction on same line: label: instr ...
+                m = re.match(r"^([A-Za-z_.$][\w.$@]*):\s*(.+)$", s)
+                if m:
+                    s = m.group(2).strip()
+                    if not s:
+                        continue
+                # drop assembler directives starting with '.'
+                if re.match(r"^\s*\.", s):
+                    continue
+                # drop NASM/YASM preprocessor lines beginning with '%'
+                if s.startswith('%'):
+                    continue
+            else:
+                # In block mode, surface unsupported preprocessor directives (includes are expanded earlier)
+                if s.startswith('%'):
+                    raise RuntimeError(f"Unsupported NASM/YASM directive: '{s}'. Inline or remove macros/defines.")
+                # Drop common assembler declarations and section directives
+                if re.match(r"^\s*\.", s):
+                    # e.g., .intel_syntax, .text, .globl
+                    continue
+                if re.match(r"^(?i)(global|extern|extrn)\b", s):
+                    continue
             lines.append(s)
             mapping.append(idx)
         return "\n".join(lines), mapping
+
+    def _preprocess_includes(self, text: str, base_dirs: Optional[List[str]] = None) -> str:
+        """Inline simple NASM/YASM `%include` directives.
+
+        Supports: %include "file", %include 'file', %include file
+        Returns expanded text or raises with a helpful message if missing.
+        """
+        base_dirs = list(base_dirs or [])
+        seen: set[str] = set()
+
+        def _resolve(path: str) -> Optional[str]:
+            if os.path.isabs(path):
+                return path if os.path.isfile(path) else None
+            for d in base_dirs:
+                cand = os.path.join(d, path)
+                if os.path.isfile(cand):
+                    return cand
+            return None
+
+        def _expand(buf: str) -> str:
+            out: List[str] = []
+            for raw in buf.splitlines():
+                line = raw.strip()
+                m = re.match(r"^%?include\s+(?:'([^']+)'|\"([^\"]+)\"|([^'\"\s]+))\s*$", line, re.IGNORECASE)
+                if m:
+                    inc_path = m.group(1) or m.group(2) or m.group(3)
+                    full = _resolve(inc_path)
+                    if not full:
+                        where = ", ".join(base_dirs) if base_dirs else os.getcwd()
+                        raise RuntimeError(f"include not found: {inc_path} (searched: {where})")
+                    if full in seen:
+                        # prevent recursive loops
+                        continue
+                    seen.add(full)
+                    try:
+                        with open(full, 'r', encoding='utf-8', errors='ignore') as f:
+                            content = f.read()
+                    except Exception as e:
+                        raise RuntimeError(f"unable to read include '{inc_path}': {e}")
+                    out.append(_expand(content))
+                else:
+                    out.append(raw)
+            return "\n".join(out)
+
+        return _expand(text)
 
     def _augment_bn_error(self, err: Exception, sanitized: str, line_map: List[int]) -> Exception:
         """Try to remap BN error line numbers to the user's original input and add context."""

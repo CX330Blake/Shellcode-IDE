@@ -186,6 +186,19 @@ class ShellcodeIDEWindow(QMainWindow):
         tb.addWidget(QLabel("Arch:"))
         tb.addWidget(self.arch_combo)
         tb.addSeparator()
+        # Block assemble toggle: allow labels/forward refs
+        self.chk_block_asm = QCheckBox("Allow labels")
+        try:
+            self.chk_block_asm.setToolTip("Block assemble: preserve labels and forward references")
+        except Exception:
+            pass
+        try:
+            # Default off for safety; user can enable when needed
+            self.chk_block_asm.setChecked(False)
+        except Exception:
+            pass
+        tb.addWidget(self.chk_block_asm)
+        tb.addSeparator()
         tb.addAction(self.act_assemble)
         tb.addAction(self.act_disassemble)
 
@@ -1766,7 +1779,8 @@ class ShellcodeIDEWindow(QMainWindow):
             return
         arch = self.arch_combo.currentText() or "x86_64"
         try:
-            data = self.adapter.assemble(asm, arch_name=arch, platform_name=None, addr=0)
+            allow_labels = bool(getattr(self, 'chk_block_asm', None) and self.chk_block_asm.isChecked())
+            data = self.adapter.assemble(asm, arch_name=arch, platform_name=None, addr=0, allow_labels=allow_labels)
         except Exception as e:
             QMessageBox.critical(self, "Assemble Error", f"{e}\n\n{traceback.format_exc()}")
             return
