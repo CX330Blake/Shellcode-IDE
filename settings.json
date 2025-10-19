@@ -29,5 +29,8 @@
     "/System/Volumes/Data/Users/CX330/Working/Share/x64asm/shell.asm",
     "/System/Volumes/Data/Users/CX330/Working/Share/x64asm/shell.bin"
   ],
-  "last_open_dir": "/Users/CX330/Working/Share/MplabProjects/lab4.X"
+  "last_open_dir": "/Users/CX330/Working/Share/MplabProjects/lab4.X",
+  "opt_rule_push_zero": true,
+  "opt_rule_mov_imm8": true,
+  "syscalls_style_default": "Commented"
 }

@@ -62,6 +62,7 @@ from ..backends.bn_adapter import BNAdapter
 from ..backends.validator import BadPatternManager, validate_all
 from ..utils.config import load_config, save_config
 from .patterns_dialog import PatternsDialog
+from .settings_dialog import SettingsDialog
 from .patterns_panel import PatternsPanel
 from .highlighters import (
     create_disassembly_highlighter,
@@ -183,12 +184,25 @@ class ShellcodeIDEWindow(QMainWindow):
         tb.addSeparator()
         tb.addWidget(QLabel("Arch:"))
         tb.addWidget(self.arch_combo)
-        tb.addSeparator()
         # Labels are always allowed (block assembly mode enabled)
         # Checkbox removed; always assemble with labels preserved.
         tb.addSeparator()
         tb.addAction(self.act_assemble)
         tb.addAction(self.act_disassemble)
+        # Push Settings button to the far right within the same title bar
+        try:
+            self._toolbar_right_spacer = QWidget()
+            self._toolbar_right_spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+            tb.addWidget(self._toolbar_right_spacer)
+        except Exception:
+            self._toolbar_right_spacer = None
+        try:
+            self.btn_settings = QPushButton("Settings")
+            self.btn_settings.setToolTip("Open Settings")
+            tb.addWidget(self.btn_settings)
+            self.btn_settings.clicked.connect(self.on_open_settings)
+        except Exception:
+            self.btn_settings = None
 
         # Central layout
         splitter = QSplitter()
@@ -372,6 +386,13 @@ class ShellcodeIDEWindow(QMainWindow):
             parent=self,
         )
         self.output_tabs.addTab(self.optimize_widget, "Optimize")
+        # Apply optimize defaults from config
+        try:
+            cfg = load_config()
+            self.optimize_widget.chk_rule1.setChecked(bool(cfg.get("opt_rule_push_zero", True)))
+            self.optimize_widget.chk_rule2.setChecked(bool(cfg.get("opt_rule_mov_imm8", True)))
+        except Exception:
+            pass
 
         # Formats view (Shellcode output pane)
         fmt_widget = QWidget()
@@ -409,6 +430,14 @@ class ShellcodeIDEWindow(QMainWindow):
         try:
             # supported generators (label C emits the runnable C stub)
             self.hll_lang_combo.addItems(["C", "Python", "Zig", "Rust", "Go"])  # supported generators
+        except Exception:
+            pass
+        # Load default HLL language from config
+        try:
+            cfg = load_config()
+            def_lang = (cfg.get("default_hll_lang") or "C")
+            idx = max(0, self.hll_lang_combo.findText(def_lang))
+            self.hll_lang_combo.setCurrentIndex(idx)
         except Exception:
             pass
         try:
@@ -521,6 +550,14 @@ class ShellcodeIDEWindow(QMainWindow):
             parent=self,
         )
         self.output_tabs.addTab(self.syscalls_widget, "Syscalls")
+        # Apply Syscalls default style from config
+        try:
+            cfg = load_config()
+            def_style = (cfg.get("syscalls_style_default") or "Commented")
+            idx = max(0, self.syscalls_widget.style_combo.findText(def_style))
+            self.syscalls_widget.style_combo.setCurrentIndex(idx)
+        except Exception:
+            pass
         # Now that Syscalls tab exists, sync Shellcode pane and editors padding to match it
         try:
             self._sync_shellcode_padding_to_syscalls()
@@ -565,6 +602,15 @@ class ShellcodeIDEWindow(QMainWindow):
             parent=self,
         )
         self.output_tabs.addTab(self.shellstorm_widget, "Shell-Storm")
+        # Apply Shell-Storm default preview language
+        try:
+            cfg = load_config()
+            def_ss_lang = (cfg.get("shellstorm_default_lang") or "C")
+            if getattr(self.shellstorm_widget, 'lang_combo', None) is not None:
+                idx = max(0, self.shellstorm_widget.lang_combo.findText(def_ss_lang))
+                self.shellstorm_widget.lang_combo.setCurrentIndex(idx)
+        except Exception:
+            pass
 
         # Validation tab (container with a button bar and text)
         val_container = QWidget()
@@ -2180,3 +2226,61 @@ class ShellcodeIDEWindow(QMainWindow):
         cfg["bad_patterns"] = self.bpm.serialize()
         save_config(cfg)
         super().closeEvent(event)
+
+    def on_open_settings(self):
+        """Open Settings dialog and apply changes live on accept."""
+        try:
+            dlg = SettingsDialog(self)
+        except Exception:
+            return
+        try:
+            res = dlg.exec()
+        except Exception:
+            res = dlg.exec_()
+        if not res:
+            return
+        vals = dlg.values()
+        # Apply: Bad-chars highlight only if value provided
+        if "bad_highlight_enabled" in vals:
+            try:
+                self.on_badchars_toggled(bool(vals.get("bad_highlight_enabled")))
+                if hasattr(self, 'patterns_widget') and hasattr(self.patterns_widget, 'chk_enabled'):
+                    self.patterns_widget.chk_enabled.setChecked(bool(vals.get("bad_highlight_enabled")))
+            except Exception:
+                pass
+        # Apply: Optimize rules (present in Settings)
+        try:
+            if "opt_rule_push_zero" in vals:
+                self.optimize_widget.chk_rule1.setChecked(bool(vals.get("opt_rule_push_zero")))
+            if "opt_rule_mov_imm8" in vals:
+                self.optimize_widget.chk_rule2.setChecked(bool(vals.get("opt_rule_mov_imm8")))
+            self.optimize_widget.on_preview()
+        except Exception:
+            pass
+        # Apply: Formats default language only if present
+        if "default_hll_lang" in vals:
+            try:
+                def_lang = vals.get("default_hll_lang")
+                if def_lang:
+                    idx = max(0, self.hll_lang_combo.findText(def_lang))
+                    self.hll_lang_combo.setCurrentIndex(idx)
+            except Exception:
+                pass
+        # Apply: Syscalls snippet style (present in Settings)
+        try:
+            if "syscalls_style_default" in vals:
+                def_style = vals.get("syscalls_style_default")
+                if def_style:
+                    idx = max(0, self.syscalls_widget.style_combo.findText(def_style))
+                    self.syscalls_widget.style_combo.setCurrentIndex(idx)
+        except Exception:
+            pass
+        # Apply: Shell-Storm preview syntax only if present
+        if "shellstorm_default_lang" in vals:
+            try:
+                def_ss = vals.get("shellstorm_default_lang")
+                if def_ss and getattr(self.shellstorm_widget, 'lang_combo', None) is not None:
+                    idx = max(0, self.shellstorm_widget.lang_combo.findText(def_ss))
+                    self.shellstorm_widget.lang_combo.setCurrentIndex(idx)
+            except Exception:
+                pass
