@@ -10,7 +10,6 @@ try:
     from PySide6.QtGui import QFont, QAction, QPalette, QColor, QIcon, QPixmap, QPainter  # type: ignore  # QAction is in QtGui on Qt6
     from PySide6.QtWidgets import (  # type: ignore
         QApplication,
-        QCheckBox,
         QComboBox,
         QGridLayout,
         QGroupBox,
@@ -37,7 +36,6 @@ except Exception:
         from PySide2.QtWidgets import (  # type: ignore
             QAction,  # QAction is in QtWidgets on Qt5
             QApplication,
-            QCheckBox,
             QComboBox,
             QGridLayout,
             QGroupBox,
@@ -186,18 +184,8 @@ class ShellcodeIDEWindow(QMainWindow):
         tb.addWidget(QLabel("Arch:"))
         tb.addWidget(self.arch_combo)
         tb.addSeparator()
-        # Block assemble toggle: allow labels/forward refs
-        self.chk_block_asm = QCheckBox("Allow labels")
-        try:
-            self.chk_block_asm.setToolTip("Block assemble: preserve labels and forward references")
-        except Exception:
-            pass
-        try:
-            # Default off for safety; user can enable when needed
-            self.chk_block_asm.setChecked(False)
-        except Exception:
-            pass
-        tb.addWidget(self.chk_block_asm)
+        # Labels are always allowed (block assembly mode enabled)
+        # Checkbox removed; always assemble with labels preserved.
         tb.addSeparator()
         tb.addAction(self.act_assemble)
         tb.addAction(self.act_disassemble)
@@ -288,9 +276,9 @@ class ShellcodeIDEWindow(QMainWindow):
         self.output_text = QPlainTextEdit()
         self._apply_mono(self.output_text)
         self.output_text.setReadOnly(True)
-        # Apply comfortable inner padding similar to Syscalls tab visuals
+        # Use default padding to match Optimize tab appearance (no extra viewport margins)
         try:
-            self._apply_inner_padding(self.output_text, margin_px=10, viewport_pad=(6, 6, 6, 6))
+            self._apply_inner_padding(self.output_text, margin_px=4, viewport_pad=(0, 0, 0, 0))
         except Exception:
             pass
         # Header row with "Send to Dev mode" action
@@ -1342,22 +1330,31 @@ class ShellcodeIDEWindow(QMainWindow):
             doc_pad = max(2, min(16, doc_pad))
         except Exception:
             doc_pad = 6
+        # Editors that should follow Syscalls-style padding (inputs, validation)
         for edit in (
             getattr(self, 'asm_edit', None),
             getattr(self, 'hex_edit', None),
-            getattr(self, 'output_text', None),
-            getattr(self, 'inline_text', None),
-            getattr(self, 'hex_text', None),
-            getattr(self, 'hll_text', None),
-            getattr(self, 'opcode_text', None),
-            getattr(self, 'debug_asm_text', None),
             getattr(self, 'validation_text', None),
         ):
             if edit is None:
                 continue
             try:
-                # Apply both visible outer padding and an inner document margin
                 self._apply_inner_padding(edit, margin_px=doc_pad, viewport_pad=pads)
+            except Exception:
+                continue
+        # Editors that should match Optimize tab style (no extra viewport margins, minimal document margin)
+        for edit in (
+            getattr(self, 'output_text', None),   # Disassembly view
+            getattr(self, 'inline_text', None),   # Shellcode outputs
+            getattr(self, 'hex_text', None),
+            getattr(self, 'hll_text', None),
+            getattr(self, 'opcode_text', None),   # Debug tab
+            getattr(self, 'debug_asm_text', None),
+        ):
+            if edit is None:
+                continue
+            try:
+                self._apply_inner_padding(edit, margin_px=4, viewport_pad=(0, 0, 0, 0))
             except Exception:
                 continue
 
@@ -1779,8 +1776,7 @@ class ShellcodeIDEWindow(QMainWindow):
             return
         arch = self.arch_combo.currentText() or "x86_64"
         try:
-            allow_labels = bool(getattr(self, 'chk_block_asm', None) and self.chk_block_asm.isChecked())
-            data = self.adapter.assemble(asm, arch_name=arch, platform_name=None, addr=0, allow_labels=allow_labels)
+            data = self.adapter.assemble(asm, arch_name=arch, platform_name=None, addr=0, allow_labels=True)
         except Exception as e:
             QMessageBox.critical(self, "Assemble Error", f"{e}\n\n{traceback.format_exc()}")
             return

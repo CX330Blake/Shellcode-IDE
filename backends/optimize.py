@@ -208,13 +208,71 @@ def _x86_push_zero(lines: List[str], arch: str = "x86_64") -> List[str]:
     return out
 
 
-def _x86_mov_reg_imm8(lines: List[str]) -> List[str]:
+def _x86_mov_reg_imm_narrow(lines: List[str], arch: str = "x86_64") -> List[str]:
+    """Narrow MOV destination to the smallest register that can hold the immediate.
+
+    Risky: using 8/16-bit forms will not zero upper bits of the 32/64-bit register.
+    """
     out: List[str] = []
+
+    def _arch_is_64(a: str) -> bool:
+        al = (a or '').lower()
+        return 'x86_64' in al or 'amd64' in al or 'x64' in al
+
+    is64 = _arch_is_64(arch)
+
     # Capture indentation, spacing, register and immediate
     mov_re = re.compile(
         r"^(?P<indent>\s*)mov(?P<sep>\s+)(?P<reg>r(?:[0-9]{1,2}|[abcd]x|[sb]p|si|di)|e[abcd]x|e[sb]p|e[sd]i)\s*,\s*(?P<imm>0x[0-9a-fA-F]+|\d+)\s*(?P<cmt>;.*)?$",
         re.I,
     )
+
+    def _narrow_reg(reg: str, bits: int) -> Optional[str]:
+        r = reg.lower()
+        if is64:
+            fam_map = {
+                'rax': {8: 'al', 16: 'ax', 32: 'eax'},
+                'rbx': {8: 'bl', 16: 'bx', 32: 'ebx'},
+                'rcx': {8: 'cl', 16: 'cx', 32: 'ecx'},
+                'rdx': {8: 'dl', 16: 'dx', 32: 'edx'},
+                'rsi': {8: 'sil', 16: 'si', 32: 'esi'},
+                'rdi': {8: 'dil', 16: 'di', 32: 'edi'},
+                'rbp': {8: 'bpl', 16: 'bp', 32: 'ebp'},
+                'rsp': {8: 'spl', 16: 'sp', 32: 'esp'},
+                'eax': {8: 'al', 16: 'ax', 32: 'eax'},
+                'ebx': {8: 'bl', 16: 'bx', 32: 'ebx'},
+                'ecx': {8: 'cl', 16: 'cx', 32: 'ecx'},
+                'edx': {8: 'dl', 16: 'dx', 32: 'edx'},
+                'esi': {8: 'sil', 16: 'si', 32: 'esi'},
+                'edi': {8: 'dil', 16: 'di', 32: 'edi'},
+                'ebp': {8: 'bpl', 16: 'bp', 32: 'ebp'},
+                'esp': {8: 'spl', 16: 'sp', 32: 'esp'},
+            }
+            if r in fam_map and bits in fam_map[r]:
+                return fam_map[r][bits]
+            if r.startswith('r') and r[1:].isdigit():
+                try:
+                    n = int(r[1:])
+                except Exception:
+                    n = -1
+                if 8 <= n <= 15:
+                    return f"r{n}{ {8:'b',16:'w',32:'d'}[bits] }".replace(' ', '')
+            return None
+        else:
+            fam_map = {
+                'eax': {8: 'al', 16: 'ax', 32: 'eax'},
+                'ebx': {8: 'bl', 16: 'bx', 32: 'ebx'},
+                'ecx': {8: 'cl', 16: 'cx', 32: 'ecx'},
+                'edx': {8: 'dl', 16: 'dx', 32: 'edx'},
+                'esi': {16: 'si', 32: 'esi'},  # no sil in 32-bit mode
+                'edi': {16: 'di', 32: 'edi'},  # no dil
+                'ebp': {16: 'bp', 32: 'ebp'},  # no bpl
+                'esp': {16: 'sp', 32: 'esp'},  # no spl
+            }
+            if r in fam_map and bits in fam_map[r]:
+                return fam_map[r][bits]
+            return None
+
     for ln in lines:
         m = mov_re.match(ln)
         if not m:
@@ -230,30 +288,14 @@ def _x86_mov_reg_imm8(lines: List[str]) -> List[str]:
         except Exception:
             out.append(ln)
             continue
-        if 0 <= imm <= 0xFF:
-            # Map 64-bit regs to 8-bit low regs (x86_64)
-            reg8_map = {
-                'rax': 'al', 'rbx': 'bl', 'rcx': 'cl', 'rdx': 'dl',
-                'rsi': 'sil', 'rdi': 'dil', 'rbp': 'bpl', 'rsp': 'spl',
-                'eax': 'al', 'ebx': 'bl', 'ecx': 'cl', 'edx': 'dl',
-                'esi': 'sil', 'edi': 'dil', 'ebp': 'bpl', 'esp': 'spl',
-            }
-            reg8 = None
-            if reg in reg8_map:
-                reg8 = reg8_map[reg]
-            elif reg.startswith('r') and reg[1:].isdigit():
-                # r8-r15 family
-                try:
-                    num = int(reg[1:])
-                    if 8 <= num <= 15:
-                        reg8 = f"r{num}b"
-                except Exception:
-                    reg8 = None
-            # If we found a valid 8-bit register, emit replacement
-            if reg8:
-                out.append(f"{indent}mov{sep}{reg8}, {imm_s}{cmt}")
-            else:
-                out.append(ln)
+        # Determine minimal width that fits the immediate
+        width = 8 if 0 <= imm <= 0xFF else (16 if imm <= 0xFFFF else (32 if imm <= 0xFFFFFFFF else None))
+        if width is None:
+            out.append(ln)
+            continue
+        narrow = _narrow_reg(reg, int(width))
+        if narrow:
+            out.append(f"{indent}mov{sep}{narrow}, {imm_s}{cmt}")
         else:
             out.append(ln)
     return out
@@ -275,10 +317,10 @@ def default_rules_for_arch(arch: str) -> List[TransformRule]:
         rules.append(
             TransformRule(
                 name="mov-reg-imm8-to-mov-reg8",
-                description="Use mov reg8, imm8 when immediate fits in 8 bits (risky)",
-                archs=["x86_64"],
+                description="Use minimal-width destination for immediate (risky)",
+                archs=["x86", "x86_64"],
                 enabled=False,
-                apply=lambda asm: _join(_x86_mov_reg_imm8(_normalize_asm(asm))),
+                apply=lambda asm, arch=a: _join(_x86_mov_reg_imm_narrow(_normalize_asm(asm), arch)),
             )
         )
     return rules

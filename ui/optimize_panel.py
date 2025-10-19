@@ -40,7 +40,7 @@ class OptimizePanel(QWidget):
         # Header controls
         top = QHBoxLayout()
         self.chk_rule1 = QCheckBox("Push 0 -> xor; push reg")
-        self.chk_rule2 = QCheckBox("mov reg, imm8 -> mov reg8, imm8 (risky)")
+        self.chk_rule2 = QCheckBox("mov reg, imm -> mov reg8/16/32, imm (risky)")
         self.btn_apply = QPushButton("Apply All")
         top.addWidget(self.chk_rule1)
         top.addWidget(self.chk_rule2)
