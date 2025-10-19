@@ -614,9 +614,9 @@ class ShellcodeIDEWindow(QMainWindow):
         # Status bar
         sb = QStatusBar()
         self.setStatusBar(sb)
-        self.status_arch = QLabel("arch: -")
-        self.status_len = QLabel("len: 0")
-        self.status_bad = QLabel("bad: 0")
+        self.status_arch = QLabel("Arch: -")
+        self.status_len = QLabel("Len: 0")
+        self.status_bad = QLabel("Bad Chars: 0")
         sb.addPermanentWidget(self.status_arch)
         sb.addPermanentWidget(self._status_separator())
         sb.addPermanentWidget(self.status_len)
