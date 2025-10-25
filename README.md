@@ -1,4 +1,4 @@
-# Sample Plugin (v0.1.3)
+# Sample Plugin (v0.1.4)
 Author: **CX330Blake**
 
 _This is a short description meant to fit on one line._
