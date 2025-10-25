@@ -39,7 +39,7 @@
             "PySide2 is bundled with Binary Ninja; no extra install typically required."
         ]
     },
-    "version": "0.1.4",
+    "version": "0.1.7",
     "author": "CX330Blake",
     "minimumbinaryninjaversion": 3164
 }
