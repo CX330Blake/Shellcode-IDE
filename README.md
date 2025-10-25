@@ -1,11 +1,11 @@
-# Sample Plugin (v0.1.8)
+# Shellcode-IDE (v0.1.9)
 Author: **CX330Blake**
 
 _This is a short description meant to fit on one line._
 
 ## Description:
 
-# Shellcode IDE — Binary Ninja Plugin
+# Shellcode IDE
 
 A Qt-based Binary Ninja plugin that helps you compose, analyze, optimize, validate, and export shellcode across architectures that Binary Ninja supports. It combines Binary Ninja’s assembler/disassembler with a user-friendly GUI for rapid iteration and safe validation of shellcode for reverse engineering, CTFs, and security research.
 
