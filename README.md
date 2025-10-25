@@ -1,3 +1,10 @@
+# Sample Plugin (v0.1.1)
+Author: **CX330Blake**
+
+_This is a short description meant to fit on one line._
+
+## Description:
+
 # Shellcode IDE — Binary Ninja Plugin
 
 A Qt-based Binary Ninja plugin that helps you compose, analyze, optimize, validate, and export shellcode across architectures that Binary Ninja supports. It combines Binary Ninja’s assembler/disassembler with a user-friendly GUI for rapid iteration and safe validation of shellcode for reverse engineering, CTFs, and security research.
@@ -265,3 +272,53 @@ MIT (recommended). See `LICENSE` once added to the repository.
 
 - Binary Ninja team and community for the APIs and plugin ecosystem
 - Inspiration from common shellcode workflows and CTF tooling
+
+
+
+## Installation Instructions
+
+### Darwin
+
+macOS:
+cd "~/Library/Application Support/Binary Ninja/plugins"
+git clone https://github.com/CX330Blake/Shellcode-IDE Shellcode-IDE
+Restart Binary Ninja or use "Reload Plugins".
+
+### Linux
+
+Linux:
+cd ~/.binaryninja/plugins
+git clone https://github.com/CX330Blake/Shellcode-IDE Shellcode-IDE
+Restart Binary Ninja or use "Reload Plugins".
+
+### Windows
+
+Windows (PowerShell or CMD):
+cd "%APPDATA%\Binary Ninja\plugins"
+git clone https://github.com/CX330Blake/Shellcode-IDE Shellcode-IDE
+Restart Binary Ninja or use "Reload Plugins".
+
+## Minimum Version
+
+This plugin requires the following minimum version of Binary Ninja:
+
+* 3164
+
+
+
+## Required Dependencies
+
+The following dependencies are required for this plugin:
+
+ * pip - pygments>=2.12, keystone-engine>=0.9.2
+ * apt - 
+ * installers - 
+ * other - Requires Binary Ninja with Python API (licensed)., PySide2 is bundled with Binary Ninja; no extra install typically required.
+
+
+## License
+
+This plugin is released under a MIT license.
+## Metadata Version
+
+2
