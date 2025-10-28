@@ -7,7 +7,17 @@ from typing import Optional, Tuple
 _QT_LIB = None
 try:
     from PySide6.QtCore import Qt, QTimer, QEvent, QSize  # type: ignore
-    from PySide6.QtGui import QFont, QAction, QPalette, QColor, QIcon, QPixmap, QPainter  # type: ignore  # QAction is in QtGui on Qt6
+    from PySide6.QtGui import (
+        QFont,
+        QAction,
+        QPalette,
+        QColor,
+        QIcon,
+        QPixmap,
+        QPainter,
+        QKeySequence,
+        QShortcut,
+    )  # type: ignore  # QAction is in QtGui on Qt6
     from PySide6.QtWidgets import (  # type: ignore
         QApplication,
         QComboBox,
@@ -32,7 +42,7 @@ try:
 except Exception:
     try:
         from PySide2.QtCore import Qt, QTimer, QEvent, QSize  # type: ignore
-        from PySide2.QtGui import QFont, QPalette, QColor, QIcon, QPixmap, QPainter  # type: ignore
+        from PySide2.QtGui import QFont, QPalette, QColor, QIcon, QPixmap, QPainter, QKeySequence  # type: ignore
         from PySide2.QtWidgets import (  # type: ignore
             QAction,  # QAction is in QtWidgets on Qt5
             QApplication,
@@ -53,6 +63,7 @@ except Exception:
             QToolBar,
             QVBoxLayout,
             QWidget,
+            QShortcut,
         )
         _QT_LIB = "PySide2"
     except Exception as exc:  # pragma: no cover
@@ -217,6 +228,12 @@ class ShellcodeIDEWindow(QMainWindow):
         self.asm_edit = QPlainTextEdit()
         self._apply_mono(self.hex_edit)
         self._apply_mono(self.asm_edit)
+        # Editor behavior: 4-space tab stops and macOS-like shortcuts
+        try:
+            self._configure_text_editor(self.hex_edit)
+            self._configure_text_editor(self.asm_edit)
+        except Exception:
+            pass
         # Apply borderless style to both editors; padding will be synced to Syscalls
         # Add comfortable inner padding to the Assembly editor so it matches
         # the feel of the right-side output panes.
@@ -1166,6 +1183,79 @@ class ShellcodeIDEWindow(QMainWindow):
         box.setReadOnly(True)
         box.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         # Use default document margin to match Optimize panel appearance
+
+    def _configure_text_editor(self, edit: QPlainTextEdit) -> None:
+        """Configure editable text areas with tab size and editing shortcuts.
+
+        - Set tab stop to 4 spaces based on current font metrics.
+        - Map Command+Backspace/Delete on macOS to delete-to-line-start/end.
+        """
+        # Set tab stop to width of 4 spaces
+        try:
+            fm = edit.fontMetrics()
+            # Qt recommends horizontalAdvance; fall back to width on older Qt
+            try:
+                sp = max(1, int(fm.horizontalAdvance(' ')))
+            except Exception:
+                sp = max(1, int(fm.width(' ')))  # type: ignore[attr-defined]
+            tab_px = int(sp * 4)
+            if hasattr(edit, 'setTabStopDistance'):
+                edit.setTabStopDistance(float(tab_px))  # Qt 5.10+/6
+            elif hasattr(edit, 'setTabStopWidth'):
+                edit.setTabStopWidth(int(tab_px))  # Qt < 5.10
+        except Exception:
+            pass
+        # Ensure Tab inserts a tab character, not change focus
+        try:
+            edit.setTabChangesFocus(False)
+        except Exception:
+            pass
+        # macOS-like shortcuts: Command+Backspace/Delete
+        try:
+            import sys as _sys
+            if _sys.platform == 'darwin':
+                try:
+                    sc_del_bol = QShortcut(QKeySequence('Meta+Backspace'), edit)
+                    sc_del_bol.activated.connect(lambda e=edit: self._delete_to_line_boundary(e, start=True))
+                except Exception:
+                    pass
+                try:
+                    sc_del_eol = QShortcut(QKeySequence('Meta+Delete'), edit)
+                    sc_del_eol.activated.connect(lambda e=edit: self._delete_to_line_boundary(e, start=False))
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    def _delete_to_line_boundary(self, edit: QPlainTextEdit, start: bool = True) -> None:
+        """Delete from cursor to start/end of line for the given editor."""
+        try:
+            cur = edit.textCursor()  # type: ignore[attr-defined]
+        except Exception:
+            return
+        try:
+            if cur.hasSelection():
+                cur.removeSelectedText()
+                edit.setTextCursor(cur)
+                return
+            cur.beginEditBlock()
+            if start:
+                cur.movePosition(cur.StartOfLine, cur.KeepAnchor)
+            else:
+                cur.movePosition(cur.EndOfLine, cur.KeepAnchor)
+            if cur.hasSelection():
+                cur.removeSelectedText()
+            cur.endEditBlock()
+            edit.setTextCursor(cur)
+        except Exception:
+            try:
+                # Fallback to single backspace/delete if anything fails
+                if start:
+                    edit.textCursor().deletePreviousChar()
+                else:
+                    edit.textCursor().deleteChar()
+            except Exception:
+                pass
 
     def _apply_inner_padding(self, edit: QPlainTextEdit, margin_px: int = 8, viewport_pad: Optional[Tuple[int, int, int, int]] = None) -> None:
         """Apply inner padding to a plain text editor using only document margin.
