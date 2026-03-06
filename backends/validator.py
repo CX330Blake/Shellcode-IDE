@@ -83,7 +83,8 @@ class BadPatternManager:
 
     def match_patterns(self, data: bytes) -> List[PatternMatch]:
         matches: List[PatternMatch] = []
-        hexstr = data.hex()
+        hexstr = " ".join(f"{x:02x}" for x in data)
+        print(hexstr)
         for p in self.patterns:
             if not p.enabled:
                 continue
@@ -117,7 +118,7 @@ class BadPatternManager:
                 offs = []
                 for m in rx.finditer(hexstr):
                     # Map hex index to byte offset: every 2 hex chars per byte
-                    start = m.start() // 2
+                    start = len(hexstr[: m.start()].replace(" ", "")) // 2
                     offs.append(start)
                 if offs:
                     matches.append(PatternMatch(pattern=p, offsets=offs))

@@ -306,7 +306,7 @@ class BNAdapter:
                 if re.match(r"^\s*\.", s):
                     # e.g., .intel_syntax, .text, .globl
                     continue
-                if re.match(r"^(?i)(global|extern|extrn)\b", s):
+                if re.match(r"^(global|extern|extrn)\b", s, re.IGNORECASE):
                     continue
             lines.append(s)
             mapping.append(idx)
